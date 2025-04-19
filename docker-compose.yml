@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  etl_pipeline:
+    build: .
+    container_name: etl_pipeline_container
+    volumes:
+      - .:/app
+    ports:
+      - "5000:5000"
+    command: python etl_scripts/main.py

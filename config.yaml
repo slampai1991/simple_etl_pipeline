@@ -1,0 +1,33 @@
+# Configuration file for the ETL pipeline
+
+# Data sources
+data_sources:
+  - name: example_api
+    type: api
+    endpoint: "https://api.example.com/data"
+    headers:
+      Authorization: "Bearer YOUR_API_KEY"
+
+  - name: local_csv
+    type: file
+    path: "data/input.csv"
+
+# Transformations
+transformations:
+  - name: clean_data
+    type: drop_nulls
+    columns: ["column1", "column2"]
+
+  - name: add_calculated_column
+    type: calculate
+    formula: "column1 * column2"
+
+# Data destinations
+data_destinations:
+  - name: database
+    type: postgres
+    connection_string: "postgresql://user:password@localhost:5432/mydatabase"
+
+  - name: local_output
+    type: file
+    path: "data/output.csv"

@@ -1,0 +1,7 @@
+# Required Python packages
+pandas
+numpy
+matplotlib
+seaborn
+apache-airflow
+flask
