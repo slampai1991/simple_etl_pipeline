@@ -42,8 +42,8 @@ if __name__ == "__main__":
 
     # Пример использования
     sample_data = [
-        {"id": "1", "country": "USA", "cases": "100000", "deaths": "5000"},
-        {"id": "2", "country": "Italy", "cases": "80000", "deaths": "4000"}
+        {"id": "1", "attribute": "value1"},
+        {"id": "2", "attribute": "value2"}
     ]
 
-    loader.load_to_sqlite(sample_data, "covid_statistics")
+    loader.load_to_sqlite(sample_data, "generic_table")

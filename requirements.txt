@@ -5,3 +5,4 @@ matplotlib
 seaborn
 apache-airflow
 flask
+pymongo

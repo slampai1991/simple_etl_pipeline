@@ -25,7 +25,7 @@ class DataTransformer:
                         normalized_data.append(new_record)
                 else:
                     normalized_data.append(record)
-        logging.info("Data normalized to 1NF.")
+        logging.info("Данные нормализованы до 1НФ.")
         return normalized_data
 
     def normalize_to_2nf(self, data, primary_key, dependent_columns):
@@ -48,13 +48,13 @@ class DataTransformer:
             main_table.append(main_record)
             dependent_table.append(dependent_record)
 
-        logging.info("Data normalized to 2NF.")
+        logging.info("Данные нормализованы до 2НФ.")
         return main_table, dependent_table
 
 if __name__ == "__main__":
     transformer = DataTransformer()
 
-    # Example usage
+    # Пример использования
     sample_data = [
         {"id": 1, "name": "John", "hobbies": ["reading", "swimming"], "city": "New York"},
         {"id": 2, "name": "Jane", "hobbies": ["dancing"], "city": "Los Angeles"}
@@ -62,11 +62,11 @@ if __name__ == "__main__":
 
     # Normalize to 1NF
     data_1nf = transformer.normalize_to_1nf(sample_data)
-    logging.info(f"1NF Data: {data_1nf}")
+    logging.info(f"1НФ Данные: {data_1nf}")
 
     # Normalize to 2NF
     primary_key = "id"
     dependent_columns = ["city"]
     main_table, dependent_table = transformer.normalize_to_2nf(data_1nf, primary_key, dependent_columns)
-    logging.info(f"Main Table: {main_table}")
-    logging.info(f"Dependent Table: {dependent_table}")
+    logging.info(f"Основная таблица: {main_table}")
+    logging.info(f"Зависимая таблица: {dependent_table}")
