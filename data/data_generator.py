@@ -467,9 +467,3 @@ class DataGenerator:
             db_name (str): Имя базы данных MongoDB. По умолчанию "synthetic_mongo_data".
         """
         pass
-
-
-obj = DataGenerator("config.yaml")
-obj.generate_sqlite("synthetic_ecommerce_data.db")
-obj.generate_csv("synthetic_employees_data.csv")
-obj.generate_json("synthetic_heroes_data.json")
