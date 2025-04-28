@@ -10,27 +10,28 @@ data_sources:
 
   - name: local_csv
     type: file
-    path: "data/input.csv"
+    path: "data/*.csv"
 
 # Transformations
 transformations:
   - name: clean_data
     type: drop_nulls
-    columns: ["column1", "column2"]
+    columns: "*"  # Указывает, что фильтрация будет применяться ко всем столбцам
 
-  - name: add_calculated_column
-    type: calculate
-    formula: "column1 * column2"
+  - name: remove_duplicates
+    type: drop_duplicates
+    columns: "*"  # Указывает, что удаление дубликатов будет применяться ко всем столбцам
 
 # Data destinations
 data_destinations:
-  - name: database
-    type: postgres
-    connection_string: "postgresql://user:password@localhost:5432/mydatabase"
+- name: sqlite_db
+  type: sqlite
+  database: "data/output.db"
+  table: "processed_data"
 
-  - name: local_output
-    type: file
-    path: "data/output.csv"
+- name: output_csv
+  type: file
+  path: "data/output.csv"
 
 # Headers for the API request
 headers:
@@ -39,3 +40,108 @@ headers:
   Content-Type: "application/json"
   User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
   Accept-Encoding: "gzip, deflate, br"
+
+# Synthetic Sqlite database configuration
+sqlite_tables:
+  - name: users
+    num_rows: 2500
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - name: TEXT
+      - age: INTEGER CHECK(age > 0 AND age < 100)
+      - phone: TEXT
+      - email: TEXT
+      - country: TEXT
+      - reg_date: TEXT
+  - name: products
+    num_rows: 5000
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - name: TEXT
+      - category: TEXT
+      - price: REAL CHECK(price > 0)
+  - name: logs
+    num_rows: 100000
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - severity: TEXT CHECK(severity IN ('INFO', 'WARNING', 'ERROR', 'CRITICAL'))
+      - error_message: TEXT
+      - timestamp: TEXT
+  - name: transactions
+    num_rows: 100000
+    columns:
+      - user_id: INTEGER
+      - amount: REAL
+      - date: TEXT
+      - description: TEXT
+      - status: TEXT CHECK(status IN ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'))
+    constraints:
+      - PRIMARY KEY (user_id, date)
+      - FOREIGN KEY (user_id) REFERENCES users(id)
+  - name: user_actions
+    num_rows: 50000
+    columns:
+      - user_id: INTEGER
+      - action: TEXT
+      - timestamp: TEXT
+    constraints:
+      - PRIMARY KEY (user_id, timestamp)
+      - FOREIGN KEY (user_id) REFERENCES users(id)
+  - name: orders
+    num_rows: 10000
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - user_id: INTEGER
+      - product_id: INTEGER
+      - purchase_date: TEXT
+      - status: TEXT CHECK(status IN ('PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'))
+      - amount: REAL CHECK(amount > 0)
+    constraints:
+      - FOREIGN KEY (user_id) REFERENCES users(id)
+      - FOREIGN KEY (product_id) REFERENCES products(id)
+
+# Synthetic employees data for CSV file configuration
+csv_file:
+    num_rows: 2500
+    headers: ['ID', 'NAME', 'AGE', 'PHONE', 'EMAIL', 'COUNTRY', 'HIRE_DATE', 'DEPARTMENT', 'JOB_TITLE', 'SALARY']
+
+# JSON data configuration
+json_file:
+    num_rows: 1000
+    fields: ['name', 'age', 'alias', 'team', 'superpower', 'weaknesses', 'weapon', 'origin', 'first_appearance', 'status']
+
+# MongoDB database configuration
+mongo_db:
+  - name: content_management
+    collections:
+      - name: articles
+        num_documents: 5000
+        schema:
+          - id: ObjectId
+          - title: String
+          - author: String
+          - content: String
+          - tags: Array
+          - published_date: Date
+          - status: String CHECK(status IN ['draft', 'published', 'archived'])
+      - name: users
+        num_documents: 2000
+        schema:
+          - id: ObjectId
+          - username: String
+          - email: String
+          - role: String CHECK(role IN ['admin', 'editor', 'viewer'])
+          - registration_date: Date
+          - last_login: Date
+      - name: comments
+        num_documents: 10000
+        schema:
+          - id: ObjectId
+          - article_id: ObjectId
+          - user_id: ObjectId
+          - comment_text: String
+          - timestamp: Date
+          - status: String CHECK(status IN ['approved', 'pending', 'rejected'])
+        relationships:
+          - FOREIGN KEY (article_id) REFERENCES articles(id)
+          - FOREIGN KEY (user_id) REFERENCES users(id)
