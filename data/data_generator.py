@@ -70,120 +70,13 @@ class DataGenerator:
             # В реальных данных естественно будет более сложная логика
             # Но мы не будем тратить время на это
 
-            products = [
-                "Headphones",
-                "Chair",
-                "Lamp",
-                "Fan",
-                "Rug",
-                "Washing Machine",
-                "Smartwatch",
-                "USB Cable",
-                "Plate",
-                "Laptop",
-                "Keyboard",
-                "Oven",
-                "Fork",
-                "Table",
-                "Vacuum Cleaner",
-                "Printer",
-                "Refrigerator",
-                "Sweater",
-                "Heater",
-                "Shorts",
-                "Hat",
-                "T-shirt",
-                "Backpack",
-                "Dress",
-                "Towel",
-                "Iron",
-                "Desk",
-                "Loafers",
-                "Brogues",
-                "Pillow",
-                "Socks",
-                "Sandals",
-                "Slippers",
-                "Glasses",
-                "Mirror",
-                "Skirt",
-                "Pants",
-                "Microwave",
-                "Charger",
-                "Sneakers",
-                "Bedsheet",
-                "Eraser",
-                "Mug",
-                "Belt",
-                "Shelf",
-                "Clock",
-                "Wardrobe",
-                "Shoes",
-                "Sofa",
-                "Coat",
-                "Boots",
-                "Air Conditioner",
-                "Flip Flops",
-                "Moccasins",
-                "Monitor",
-                "Mouse",
-                "Spoon",
-                "Book",
-                "Blanket",
-                "Scarf",
-                "Jacket",
-                "Heels",
-                "Notebook",
-                "Camera",
-                "Teapot",
-                "Toaster",
-                "Smartphone",
-                "Bed",
-                "Tablet",
-                "Curtains",
-                "Pencil",
-                "Shirt",
-            ]
-
-            models = [
-                "Model A",
-                "Model B",
-                "Model C",
-                "Model D",
-                "Model E",
-                "Model F",
-                "Model G",
-                "Model H",
-                "Model I",
-                "Model J",
-                "Model K",
-                "Model L",
-                "Model M",
-                "Model N",
-                "Model O",
-            ]
-
-            colors = [
-                "Red",
-                "Blue",
-                "Green",
-                "Yellow",
-                "Black",
-                "White",
-                "Gray",
-                "Pink",
-                "Purple",
-                "Orange",
-                "Brown",
-                "Cyan",
-                "Magenta",
-                "Lime",
-                "Olive",
-            ]
-
             logging.info("Генерация уникальных названий товаров...")
-            # Генерация уникальных названий товаров
             product_names = set()
+
+            # Получаем списки из конфигурации
+            products = self.config["word_lists"]["products"]
+            models = self.config["word_lists"]["models"]
+            colors = self.config["word_lists"]["colors"]
 
             while len(product_names) < num_rows:
                 product_name = f"{random.choice(colors)} {random.choice(products)} {random.choice(models)}"
@@ -237,15 +130,25 @@ class DataGenerator:
                         "Payment for product return",
                         "Payment for product exchange",
                     ]
+                    unique_combinations = (
+                        set()
+                    )  # Track unique (user_id, date) combinations
+
                     for _ in range(num_rows):
+                        while True:
+                            user_id = random.choice(user_ids)
+                            date = (
+                                datetime.now() - timedelta(days=random.randint(0, 365))
+                            ).strftime("%Y-%m-%d %H:%M:%S")
+                            if (user_id, date) not in unique_combinations:
+                                unique_combinations.add((user_id, date))
+                                break
+
                         data.append(
                             (
-                                random.choice(user_ids),
+                                user_id,
                                 round(random.uniform(10.0, 1000.0), 2),
-                                (
-                                    datetime.now()
-                                    - timedelta(days=random.randint(0, 365))
-                                ).strftime("%Y-%m-%d %H:%M:%S"),
+                                date,
                                 random.choice(descriptions),
                                 random.choice(
                                     ["PENDING", "COMPLETED", "FAILED", "CANCELLED"]
@@ -345,16 +248,25 @@ class DataGenerator:
                         "UPDATE_PROFILE",
                         "SUBSCRIBE",
                     ]
+                    unique_combinations = (
+                        set()
+                    )  # Отслеживание уникальных (user_id, timestamp)
 
                     for _ in range(num_rows):
+                        while True:
+                            user_id = random.choice(user_ids)
+                            timestamp = (
+                                datetime.now() - timedelta(days=random.randint(0, 365))
+                            ).strftime("%Y-%m-%d %H:%M:%S")
+                            if (user_id, timestamp) not in unique_combinations:
+                                unique_combinations.add((user_id, timestamp))
+                                break
+
                         data.append(
                             (
-                                random.choice(user_ids),
+                                user_id,
                                 random.choice(actions),
-                                (
-                                    datetime.now()
-                                    - timedelta(days=random.randint(0, 365))
-                                ).strftime("%Y-%m-%d %H:%M:%S"),
+                                timestamp,
                             )
                         )
                 case "orders":
@@ -492,9 +404,7 @@ class DataGenerator:
             logging.error(f"Ошибка при генерации CSV: {e}")
             raise
 
-    def generate_json(
-        self, json_name: str = "synthetic_marvel_heroes_data.json"
-    ) -> None:
+    def generate_json(self, json_name: str = "synthetic_heroes_data.json") -> None:
         """
         Метод для генерации синтетических данных в JSON файле.
         Генерирует данные в зависимости от конфигурации, указанной в yaml файле.
@@ -503,96 +413,41 @@ class DataGenerator:
             json_name (str): Путь к файлу JSON. По умолчанию "synthetic_marvel_heroes_data.json".
         """
 
+        def generate_hero(self) -> dict:
+            """
+            Генерация данных для одного героя.
+            Использует списки из конфигурации для генерации случайных значений.
+            """
+            # Получаем списки из конфигурации
+            aliases = self.config["word_lists"]["hero_aliases"]
+            types = self.config["word_lists"]["hero_types"]
+            teams = self.config["word_lists"]["hero_teams"]
+            powers = self.config["word_lists"]["hero_powers"]
+            weaknesses = self.config["word_lists"]["hero_weaknesses"]
+            weapons = self.config["word_lists"]["hero_weapons"]
+
+            hero = {
+                "name": self.faker.name(),
+                "age": random.randint(18, 90),
+                "alias": f"{random.choice(aliases)} {random.choice(types)}",
+                "team": random.choice(teams),
+                "superpower": random.choice(powers),
+                "weakness": random.choice(weaknesses),
+                "weapon": random.choice(weapons),
+                "origin": self.faker.city() + ", " + self.faker.country(),
+                "first_appearance": (
+                    datetime.now() - timedelta(days=random.randint(0, 36500))
+                ).strftime("%Y-%m-%d"),
+                "status": random.choice(["ACTIVE", "INACTIVE", "DECEASED", "UNKNOWN"]),
+            }
+            return hero
+
         try:
             logging.info("Генерация данных в JSON формате.")
             data = []
 
             for _ in range(1, self.config["json_file"]["num_rows"] + 1):
-                hero = {
-                    "id": _,
-                    "name": self.faker.name(),
-                    "age": random.randint(18, 65),
-                    "alias": random.choice(
-                        ["Wonder", "Super", "Mega", "Ultra", "Hyper"]
-                    )
-                    + " "
-                    + random.choice(
-                        [
-                            "Man",
-                            "Woman",
-                            "Girl",
-                            "Boy",
-                            "Warrior",
-                            "Desintegrator",
-                            "Annihilator",
-                            "Destroyer",
-                            "Avenger",
-                            "Savior",
-                        ]
-                    ),
-                    "team": random.choice(
-                        [
-                            "Avengers",
-                            "X-Men",
-                            "Guardians of the Galaxy",
-                            "Fantastic Four",
-                            "Defenders",
-                            "Solo Hero",
-                            "Justice League",
-                            "Teen Titans",
-                            "Inhumans",
-                            "Doom Patrol",
-                        ]
-                    ),
-                    "superpower": random.choice(
-                        [
-                            "Flight",
-                            "Invisibility",
-                            "Super Strength",
-                            "Telepathy",
-                            "Time Travel",
-                            "Shape Shifting",
-                            "Energy Blasts",
-                            "Healing",
-                            "Super Speed",
-                            "Immortality",
-                        ]
-                    ),
-                    "weakness": random.choice(
-                        [
-                            "Kryptonite",
-                            "Magic",
-                            "Dark Matter",
-                            "Radiation",
-                            "Plasma",
-                            "Heat",
-                            "Cold",
-                            "Light",
-                            "Darkness",
-                        ]
-                    ),
-                    "weapon": random.choice(
-                        [
-                            "Sword",
-                            "Gun",
-                            "Bow and Arrow",
-                            "Staff",
-                            "Shield",
-                            "Fists",
-                            "Magic Wand",
-                            "Spear",
-                            "Trident",
-                            "Lasso",
-                        ]
-                    ),
-                    "origin": self.faker.city(),
-                    "first_appearance": (
-                        datetime.now() - timedelta(days=random.randint(0, 36500))
-                    ).strftime("%Y-%m-%d"),
-                    "status": random.choice(
-                        ["Active", "Inactive", "Retired", "Deceased"]
-                    ),
-                }
+                hero = generate_hero(self)
                 data.append(hero)
 
             with open(json_name, "w", encoding="utf-8") as jsonfile:
@@ -612,3 +467,9 @@ class DataGenerator:
             db_name (str): Имя базы данных MongoDB. По умолчанию "synthetic_mongo_data".
         """
         pass
+
+
+obj = DataGenerator("config.yaml")
+obj.generate_sqlite("synthetic_ecommerce_data.db")
+obj.generate_csv("synthetic_employees_data.csv")
+obj.generate_json("synthetic_heroes_data.json")
