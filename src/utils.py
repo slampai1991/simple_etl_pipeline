@@ -1,57 +1,32 @@
 import csv
-import logging
 import sqlite3
 import random
 import faker
-import yaml
-import json
-import pymongo
+import logging
+import os
+import pymongo as mongo
 from datetime import datetime, timedelta
-
-# Настраиваем логирование в файл для генерации данных
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler("data_generator_errors.log"),
-        logging.StreamHandler(),
-    ],
-)
 
 
 class DataGenerator:
-    # Класс-генератор синтетических данных разных типов (логи ошибок, транзакции и т.д.)
+    # Генератор синтетических данных разных типов (логи, транзакции и т.д.)
     # и разных форматов (CSV, SQLite DB и т.д.)
     # В зависимости от конфигурации, он может генерировать данные в разных форматах
     # Сохраняет данные в заданных форматах локально
-    def __init__(self, config: str):
-        # config - путь к yaml файлу с настройками для генерации данных
-        try:
-            with open(config, "r", encoding="utf-8") as file:
-                self.config = yaml.safe_load(file)
-
-            if not self.config.get("mongo_connection_string"):
-                logging.warning(
-                    "MongoDB connection string not found in configuration. Using default 'mongodb://localhost:27017/'."
-                )
-        except FileNotFoundError:
-            logging.error(f"Файл конфигурации '{config}' не был найден.")
-            raise
-        except yaml.YAMLError as e:
-            logging.error(f"Ошибка при чтении конфигурации: {e}")
-            raise
-
+    # При необходимости можешь дописать нужные методы, или изменить логику существующих
+    # В любом случае, не забудь внести изменения и в конфиг файл
+    def __init__(self, config: dict):
+        self.config = config  # Конфигурация для генерации данных
         self.faker = faker.Faker()  # Генератор случайных данных
 
-    def generate_sqlite(self, db_name: str = "synthetic_ecommerce_data.db") -> None:
+    def generate_sqlite(self, db_name: str) -> None:
         """
-        Метод для генерации синтетических данных в SQLite DB.
+        Метод генерации синтетических данных для SQLite DB.
         Генерирует данные в зависимости от конфигурации, указанной в yaml файле.
 
         Args:
-            db_name (str): Путь к файлу SQLite DB. По умолчанию "synthetic_data.db".
+            db_name (str): Имя БД SQLite
         """
-
         def get_product_names(num_rows: int) -> set:
             """
             Генерация уникальных названий товаров.
@@ -120,16 +95,6 @@ class DataGenerator:
                 case "transactions":
                     cursor.execute("SELECT id FROM users")
                     user_ids = [row[0] for row in cursor.fetchall()]
-                    descriptions = [
-                        "Payment for subscription",
-                        "Refund for canceled subscription",
-                        "Payment for product purchase",
-                        "Refund for canceled product purchase",
-                        "Payment for service",
-                        "Refund for canceled service",
-                        "Payment for product return",
-                        "Payment for product exchange",
-                    ]
                     unique_combinations = (
                         set()
                     )  # Track unique (user_id, date) combinations
@@ -149,7 +114,9 @@ class DataGenerator:
                                 user_id,
                                 round(random.uniform(10.0, 1000.0), 2),
                                 date,
-                                random.choice(descriptions),
+                                random.choice(
+                                    self.config["word_lists"]["transaction_desc"]
+                                ),
                                 random.choice(
                                     ["PENDING", "COMPLETED", "FAILED", "CANCELLED"]
                                 ),
@@ -157,65 +124,16 @@ class DataGenerator:
                         )
                 case "products":
                     products = get_product_names(num_rows)
-                    category_names = [
-                        "Electronics",
-                        "Furniture",
-                        "Clothing",
-                        "Kitchenware",
-                        "Toys",
-                        "Books",
-                        "Sports",
-                        "Beauty",
-                        "Automotive",
-                        "Gardening",
-                        "Health",
-                        "Office Supplies",
-                        "Pet Supplies",
-                        "Jewelry",
-                        "Watches",
-                        "Footwear",
-                        "Bags",
-                    ]
                     for _ in range(num_rows):
                         data.append(
                             (
                                 None,
                                 products.pop(),
-                                random.choice(category_names),
+                                random.choice(self.config["word_lists"]["categories"]),
                                 round(random.uniform(1, 2500), 2),
                             )
                         )
                 case "logs":
-                    messages = {
-                        "INFO": [
-                            "Operation completed successfully.",
-                            "User logged in.",
-                            "Data saved to database.",
-                            "File uploaded successfully.",
-                            "Connection established.",
-                        ],
-                        "WARNING": [
-                            "Low disk space.",
-                            "High memory usage.",
-                            "Unresponsive script.",
-                            "Deprecated API usage.",
-                            "Slow response time.",
-                        ],
-                        "ERROR": [
-                            "File not found.",
-                            "Database connection failed.",
-                            "Invalid input data.",
-                            "Permission denied.",
-                            "Network error.",
-                        ],
-                        "CRITICAL": [
-                            "System crash.",
-                            "Data corruption detected.",
-                            "Security breach.",
-                            "Service unavailable.",
-                            "Critical hardware failure.",
-                        ],
-                    }
                     for _ in range(num_rows):
                         severity = (
                             random.choice(["INFO", "WARNING", "ERROR", "CRITICAL"])
@@ -226,7 +144,9 @@ class DataGenerator:
                             (
                                 None,
                                 severity,
-                                random.choice(messages[severity]),
+                                random.choice(
+                                    self.config["word_lists"]["log_messages"][severity]
+                                ),
                                 (
                                     datetime.now()
                                     - timedelta(days=random.randint(0, 365))
@@ -236,18 +156,7 @@ class DataGenerator:
                 case "user_actions":
                     cursor.execute("SELECT id FROM users")
                     user_ids = [row[0] for row in cursor.fetchall()]
-                    actions = [
-                        "LOGIN",
-                        "LOGOUT",
-                        "PURCHASE",
-                        "ADD_TO_CART",
-                        "REMOVE_FROM_CART",
-                        "SEARCH",
-                        "VIEW_PRODUCT",
-                        "CHECKOUT",
-                        "UPDATE_PROFILE",
-                        "SUBSCRIBE",
-                    ]
+
                     unique_combinations = (
                         set()
                     )  # Отслеживание уникальных (user_id, timestamp)
@@ -265,23 +174,16 @@ class DataGenerator:
                         data.append(
                             (
                                 user_id,
-                                random.choice(actions),
+                                random.choice(self.config["word_lists"]["actions"]),
                                 timestamp,
                             )
                         )
                 case "orders":
                     cursor.execute("SELECT id FROM users")
                     user_ids = [row[0] for row in cursor.fetchall()]
+
                     cursor.execute("SELECT id FROM products")
                     product_ids = [row[0] for row in cursor.fetchall()]
-                    statuses = [
-                        "PENDING",
-                        "SHIPPED",
-                        "DELIVERED",
-                        "CANCELLED",
-                        "RETURNED",
-                        "COMPLETED",
-                    ]
 
                     for _ in range(num_rows):
                         data.append(
@@ -293,7 +195,9 @@ class DataGenerator:
                                     datetime.now()
                                     - timedelta(days=random.randint(0, 365))
                                 ).strftime("%Y-%m-%d %H:%M:%S"),
-                                random.choice(statuses),
+                                random.choice(
+                                    self.config["word_lists"]["order_status"]
+                                ),
                                 random.randint(1, 5),
                             )
                         )
@@ -307,8 +211,15 @@ class DataGenerator:
 
         try:
             logging.info("Подключение к БД SQLite.")
+            # Проверяем, существует ли директория для сохранения файла
+            destination_path = self.config["data_destinations"]["sqlite"]
+            if not os.path.exists(destination_path):
+                os.makedirs(destination_path, exist_ok=True)
+                logging.info(f"Создана директория {destination_path}")
+            db_name = os.path.join(destination_path, db_name)
             conn = sqlite3.connect(db_name)
             cursor = conn.cursor()
+            logging.info(f"Подключение к БД SQLite успешно.")
 
             logging.info("Создание таблиц и заполнение их данными.")
             # Создание таблиц на основе конфигурации
@@ -353,24 +264,29 @@ class DataGenerator:
             logging.error(f"Ошибка при работе с БД SQLite: {e}")
             raise
 
-    def generate_csv(self, csv_name: str = "synthetic_employees_data.csv") -> None:
+    def generate_csv(self, csv_name: str) -> None:
         """
         Метод для генерации синтетических данных в CSV файле.
         Генерирует данные в зависимости от конфигурации, указанной в yaml файле.
 
         Args:
-            csv_name (str): Путь к файлу CSV. По умолчанию "synthetic_data.csv".
+            csv_name (str): Имя генерируемого CSV файла.
         """
         try:
-            logging.info("Генерация данных в CSV формате.")
-            with open(csv_name, "w", newline="", encoding="utf-8") as csvfile:
+            logging.info("Генерация данных и запись в CSV файл.")
+            with open(
+                os.path.join(self.config["data_destinations"]["csv"], csv_name),
+                "w+",
+                newline="",
+                encoding="utf-8",
+            ) as csvfile:
                 # Создание CSV writer объекта для записи данных
-                # Используем utf-8 для поддержки кириллицы и других символов
                 writer = csv.writer(csvfile)
                 # Запись заголовков
-                writer.writerow(self.config["csv_file"]["headers"])
+                writer.writerow(self.config["csv_config"]["headers"])
 
-                for _ in range(1, self.config["csv_file"]["num_rows"] + 1):
+                # Генерация данных и их запись
+                for _ in range(1, self.config["csv_config"]["num_rows"] + 1):
                     row = [
                         _,
                         self.faker.name(),
@@ -404,72 +320,75 @@ class DataGenerator:
             logging.error(f"Ошибка при генерации CSV: {e}")
             raise
 
-    def generate_json(self, json_name: str = "synthetic_heroes_data.json") -> None:
+    def generate_mongo(self, db_name: str) -> None:
         """
-        Метод для генерации синтетических данных в JSON файле.
-        Генерирует данные в зависимости от конфигурации, указанной в yaml файле.
+        Метод генерации синтетических данных для MongoDB.
 
         Args:
-            json_name (str): Путь к файлу JSON. По умолчанию "synthetic_marvel_heroes_data.json".
+            db_name (str): Имя коллекции MongoDB.
         """
 
-        def generate_hero(self) -> dict:
-            """
-            Генерация данных для одного героя.
-            Использует списки из конфигурации для генерации случайных значений.
-            """
-            # Получаем списки из конфигурации
-            aliases = self.config["word_lists"]["hero_aliases"]
-            types = self.config["word_lists"]["hero_types"]
-            teams = self.config["word_lists"]["hero_teams"]
-            powers = self.config["word_lists"]["hero_powers"]
-            weaknesses = self.config["word_lists"]["hero_weaknesses"]
-            weapons = self.config["word_lists"]["hero_weapons"]
+        def generate_user_data(num_records: int) -> list:
+            """Генерирует данные для вставки в MongoDB
 
-            hero = {
-                "name": self.faker.name(),
-                "age": random.randint(18, 90),
-                "alias": f"{random.choice(aliases)} {random.choice(types)}",
-                "team": random.choice(teams),
-                "superpower": random.choice(powers),
-                "weakness": random.choice(weaknesses),
-                "weapon": random.choice(weapons),
-                "origin": self.faker.city() + ", " + self.faker.country(),
-                "first_appearance": (
-                    datetime.now() - timedelta(days=random.randint(0, 36500))
-                ).strftime("%Y-%m-%d"),
-                "status": random.choice(["ACTIVE", "INACTIVE", "DECEASED", "UNKNOWN"]),
-            }
-            return hero
+            Args:
+                num_records (int): Количество генерируемых записей
+
+            Returns:
+                list: Результирующие данные
+            """
+            users = []
+            for _ in range(num_records):
+                user = {
+                    "name": self.faker.name(),
+                    "registration_date": str(
+                        self.faker.date_between(start_date="-5y", end_date="today")
+                    ),
+                    "address": {
+                        "street": self.faker.street_address(),
+                        "city": self.faker.city(),
+                        "zipcode": self.faker.zipcode(),
+                    },
+                    "transaction_history": [
+                        {
+                            "date": str(self.faker.date_this_year()),
+                            "amount": round(random.uniform(10, 500), 2),
+                        }
+                        for _ in range(random.randint(1, 5))
+                    ],
+                    "is_active": random.choice([True, False]),
+                }
+                users.append(user)
+            return users
 
         try:
-            logging.info("Генерация данных в JSON формате.")
-            data = []
-
-            for _ in range(1, self.config["json_file"]["num_rows"] + 1):
-                hero = generate_hero(self)
-                data.append(hero)
-
-            with open(json_name, "w", encoding="utf-8") as jsonfile:
-                json.dump(data, jsonfile, ensure_ascii=False, indent=4)
-
-            logging.info(f"Данные успешно сохранены в файл '{json_name}'.")
+            logging.info("Подключение к MongoDB.")
+            client = mongo.MongoClient(
+                host=self.config["mongo_config"]["host"],
+                port=self.config["mongo_config"]["port"],
+            )
+            logging.info("Подключение к MongoDB успешно.")
+            db = client[self.config["mongo_config"]["db_name"]]
+            users_col = db[self.config["mongo_config"]["collection_name"]]
+            logging.info("Создание коллекции и вставка данных.")
+            users_col.insert_many(
+                generate_user_data(self.config["mongo_config"]["num_records"])
+            )
+            logging.info("Данные успешно вставлены в MongoDB.")
         except Exception as e:
-            logging.error(f"Ошибка при генерации JSON: {e}")
+            logging.error(f"Ошибка при вставке данных в MongoDB: {e}")
             raise
 
-    def generate_mongo(self, db_name: str = "synthetic_mongo_data") -> None:
-        """
-        Метод для генерации синтетических данных в MongoDB.
-        Генерирует данные в зависимости от конфигурации, указанной в yaml файле.
-
-        Args:
-            db_name (str): Имя базы данных MongoDB. По умолчанию "synthetic_mongo_data".
-        """
-        pass
+    # По аналогии можно добавить другие методы: JSON, MongoDB, etc.
 
 
-obj = DataGenerator("config.yaml")
-obj.generate_sqlite("synthetic_ecommerce_data.db")
-obj.generate_csv("synthetic_employees_data.csv")
-obj.generate_json("synthetic_heroes_data.json")
+class DataValidator:
+    pass
+
+
+class DataProfiler:
+    pass
+
+
+class DataAuditor:
+    pass

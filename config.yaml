@@ -1,47 +1,12 @@
-# Configuration file for the ETL pipeline
+# Конфигурация для simple_etl_pipeline
 
-# Data sources
-data_sources:
-  - name: example_api
-    type: api
-    endpoint: "https://api.example.com/data"
-    headers:
-      Authorization: "Bearer YOUR_API_KEY"
+# Конфиг логирования
+log_config:
+  log_path: "logs/"
 
-  - name: local_csv
-    type: file
-    path: "data/*.csv"
-
-# Transformations
-transformations:
-  - name: clean_data
-    type: drop_nulls
-    columns: "*"  # Указывает, что фильтрация будет применяться ко всем столбцам
-
-  - name: remove_duplicates
-    type: drop_duplicates
-    columns: "*"  # Указывает, что удаление дубликатов будет применяться ко всем столбцам
-
-# Data destinations
-data_destinations:
-- name: sqlite_db
-  type: sqlite
-  database: "data/output.db"
-  table: "processed_data"
-
-- name: output_csv
-  type: file
-  path: "data/output.csv"
-
-# Headers for the API request
-headers:
-  Authorization: "Bearer YOUR_API_KEY"
-  Accept: "application/json"
-  Content-Type: "application/json"
-  User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-  Accept-Encoding: "gzip, deflate, br"
-
-# Synthetic Sqlite database configuration
+# Sqlite конфиг
+sqlite_config:
+  db_name: "synth_sqlite_database.db"
 sqlite_tables:
   - name: users
     num_rows: 2500
@@ -100,216 +65,135 @@ sqlite_tables:
       - FOREIGN KEY (user_id) REFERENCES users(id)
       - FOREIGN KEY (product_id) REFERENCES products(id)
 
-# Synthetic employees data for CSV file configuration
-csv_file:
-    num_rows: 2500
-    headers: ['ID', 'NAME', 'AGE', 'PHONE', 'EMAIL', 'COUNTRY', 'HIRE_DATE', 'DEPARTMENT', 'JOB_TITLE', 'SALARY']
+# CSV конфиг
+csv_config:
+  filename: employees_synth_data.csv
+  num_rows: 2500
+  headers: ['ID', 'NAME', 'AGE', 'PHONE', 'EMAIL', 'COUNTRY', 'HIRE_DATE', 'DEPARTMENT', 'JOB_TITLE', 'SALARY']
 
-# JSON data configuration
-json_file:
-    num_rows: 1000
-    fields: ['name', 'age', 'alias', 'team', 'superpower', 'weaknesses', 'weapon', 'origin', 'first_appearance', 'status']
+# MongoDB конфиг
+mongo_config:
+  db_name: synth_mongodb
+  collection_name: users
+  host: localhost
+  port: 27017
+  username: synth_user
+  password: synth_password
+  auth_db: admin
+  num_records: 10000
 
-# MongoDB database configuration
-mongo_db:
-  - name: content_management
-    collections:
-      - name: articles
-        num_documents: 5000
-        schema:
-          - id: ObjectId
-          - title: String
-          - author: String
-          - content: String
-          - tags: Array
-          - published_date: Date
-          - status: String CHECK(status IN ['draft', 'published', 'archived'])
-      - name: users
-        num_documents: 2000
-        schema:
-          - id: ObjectId
-          - username: String
-          - email: String
-          - role: String CHECK(role IN ['admin', 'editor', 'viewer'])
-          - registration_date: Date
-          - last_login: Date
-      - name: comments
-        num_documents: 10000
-        schema:
-          - id: ObjectId
-          - article_id: ObjectId
-          - user_id: ObjectId
-          - comment_text: String
-          - timestamp: Date
-          - status: String CHECK(status IN ['approved', 'pending', 'rejected'])
-        relationships:
-          - FOREIGN KEY (article_id) REFERENCES articles(id)
-          - FOREIGN KEY (user_id) REFERENCES users(id)
+# Источники данных
+data_sources:
+  - api: {url: "https://api.example.com/data",
+          method: GET,
+          params: {param1: value1, param2: value2},
+          headers:{
+            Authorization: "Bearer YOUR_API_KEY",
+            Accept: "application/json",
+            Content-Type: "application/json"
+            }
+            }
 
-# Списки для генерации данных
+  - csv: "data/*.csv" # Путь к CSV файлам
+
+  - sqlite: "data/*.db" # Путь к SQLite файлам
+
+# Пути соханения
+data_destinations:
+  csv: "data"
+
+  sqlite: "data"
+
+  mongo: "data" 
+
+# Конфиг обработки данных
+transformations:
+  - name: clean_data
+    type: drop_nulls
+    columns: "*"  # Указывает, что фильтрация будет применяться ко всем столбцам
+
+  - name: remove_duplicates
+    type: drop_duplicates
+    columns: "*"  # Указывает, что удаление дубликатов будет применяться ко всем столбцам
+
+# Наборы слов для генерации названий товаров
 word_lists:
-  products:
-    - "Headphones"
-    - "Chair"
-    - "Lamp"
-    - "Fan"
-    - "Rug"
-    - "Washing Machine"
-    - "Smartwatch"
-    - "USB Cable"
-    - "Plate"
-    - "Laptop"
-    - "Keyboard"
-    - "Oven"
-    - "Fork"
-    - "Table"
-    - "Vacuum Cleaner"
-    - "Printer"
-    - "Refrigerator"
-    - "Sweater"
-    - "Heater"
-    - "Shorts"
-    - "Hat"
-    - "T-shirt"
-    - "Backpack"
-    - "Dress"
-    - "Towel"
-    - "Iron"
-    - "Desk"
-    - "Loafers"
-    - "Brogues"
-    - "Pillow"
-    - "Socks"
-    - "Sandals"
-    - "Slippers"
-    - "Glasses"
-    - "Mirror"
-    - "Skirt"
-    - "Pants"
-    - "Microwave"
-    - "Charger"
-    - "Sneakers"
-    - "Bedsheet"
-    - "Eraser"
-    - "Mug"
-    - "Belt"
-    - "Shelf"
-    - "Clock"
-    - "Wardrobe"
-    - "Shoes"
-    - "Sofa"
-    - "Coat"
-    - "Boots"
-    - "Air Conditioner"
-    - "Flip Flops"
-    - "Moccasins"
-    - "Monitor"
-    - "Mouse"
-    - "Spoon"
-    - "Book"
-    - "Blanket"
-    - "Scarf"
-    - "Jacket"
-    - "Heels"
-    - "Notebook"
-    - "Camera"
-    - "Teapot"
-    - "Toaster"
-    - "Smartphone"
-    - "Bed"
-    - "Tablet"
-    - "Curtains"
-    - "Pencil"
-    - "Shirt"
-  models:
-    - "Model A"
-    - "Model B"
-    - "Model C"
-    - "Model D"
-    - "Model E"
-    - "Model F"
-    - "Model G"
-    - "Model H"
-    - "Model I"
-    - "Model J"
-    - "Model K"
-    - "Model L"
-    - "Model M"
-    - "Model N"
-    - "Model O"
-  colors:
-    - "Red"
-    - "Blue"
-    - "Green"
-    - "Yellow"
-    - "Black"
-    - "White"
-    - "Gray"
-    - "Pink"
-    - "Purple"
-    - "Orange"
-    - "Brown"
-    - "Cyan"
-    - "Magenta"
-    - "Lime"
-    - "Olive"
-  hero_aliases:
-    - "Wonder"
-    - "Super"
-    - "Mega"
-    - "Ultra"
-    - "Hyper"
-  hero_types:
-    - "Man"
-    - "Woman"
-    - "Girl"
-    - "Boy"
-    - "Warrior"
-    - "Desintegrator"
-    - "Annihilator"
-    - "Destroyer"
-    - "Avenger"
-    - "Savior"
-  hero_teams:
-    - "Avengers"
-    - "X-Men"
-    - "Guardians of the Galaxy"
-    - "Fantastic Four"
-    - "Defenders"
-    - "Solo Hero"
-    - "Justice League"
-    - "Teen Titans"
-    - "Inhumans"
-    - "Doom Patrol"
-  hero_powers:
-    - "Flight"
-    - "Invisibility"
-    - "Super Strength"
-    - "Telepathy"
-    - "Time Travel"
-    - "Shape Shifting"
-    - "Energy Blasts"
-    - "Healing"
-    - "Super Speed"
-    - "Immortality"
-  hero_weaknesses:
-    - "Kryptonite"
-    - "Magic"
-    - "Dark Matter"
-    - "Radiation"
-    - "Plasma"
-    - "Heat"
-    - "Cold"
-    - "Light"
-    - "Darkness"
-  hero_weapons:
-    - "Sword"
-    - "Gun"
-    - "Bow and Arrow"
-    - "Staff"
-    - "Shield"
-    - "Fists"
-    - "Magic Wand"
-    - "Spear"
-    - "Trident"
-    - "Lasso"
+  products: [
+    "Smart LED TV",
+    "Wireless Headphones",
+    "Gaming Laptop",
+    "Coffee Maker",
+    "Robot Vacuum",
+    "Fitness Tracker", 
+    "Digital Camera",
+    "Blender",
+    "Air Purifier",
+    "Electric Toothbrush",
+    "Portable Speaker",
+    "Microwave Oven",
+    "Tablet Computer",
+    "Security Camera",
+    "Electric Kettle",
+    "Hair Dryer",
+    "Smartwatch",
+    "Air Fryer",
+    "Bluetooth Earbuds",
+    "Food Processor",
+    "Smart Doorbell",
+    "Electric Scooter",
+    "Desk Lamp",
+    "Wireless Mouse",
+    "Mechanical Keyboard",
+    "Power Bank",
+    "Smart Scale",
+    "Rice Cooker",
+    "Dash Cam",
+    "Electric Fan",
+    "Wireless Charger",
+    "Gaming Console",
+    "External SSD",
+    "Smart Thermostat",
+    "Instant Pot",
+    "Noise Cancelling Headphones",
+    "Drone Camera",
+    "Electric Toaster",
+    "Smart Light Bulbs",
+    "Wireless Router",
+    "Handheld Vacuum",
+    "Smart Display",
+    "Electric Shaver",
+    "Portable Monitor",
+    "Smart Plug",
+    "Action Camera",
+    "Electric Blanket",
+    "Wireless Printer",
+    "Smart Lock",
+    "Portable Projector"
+    ]  
+  models: ['Model 1', 'Model 2', 'Model 3', 'Model 4', 'Model 5',
+          'Model 6', 'Model 7', 'Model 8', 'Model 9', 'Model 10']
+  colors: ['White', 'Yellow', 'Black', 'Red', 'Blue', 
+           'Green', 'Purple', 'Orange', 'Pink', 'Brown', 
+           'Gray', 'Silver', 'Gold', 'Violet', 'Bronze']
+  categories: ["Electronics", "Furniture", "Clothing", "Kitchenware", "Toys",
+               "Books", "Sports", "Beauty", "Automotive", "Gardening", "Health",
+               "Office Supplies", "Pet Supplies", "Jewelry", "Watches", "Footwear", "Bags"]
+  order_status:  ['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED']
+  actions: ["LOGIN", "LOGOUT", "PURCHASE", "ADD_TO_CART", "REMOVE_FROM_CART", 
+            "SEARCH", "VIEW_PRODUCT", "CHECKOUT", "UPDATE_PROFILE", "SUBSCRIBE"]
+  status: ['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED']
+  log_messages: {
+    "INFO": ["Operation completed successfully.", "User logged in.",
+             "Data saved to database.", "File uploaded successfully.",
+             "Connection established."],
+    "WARNING": ["Low disk space.", "High memory usage.", "Unresponsive script.",
+                "Deprecated API usage.", "Slow response time."],
+    "ERROR": ["File not found.", "Database connection failed.", "Invalid input data.",
+              "Permission denied.", "Network error."],
+    "CRITICAL": ["System crash.", "Data corruption detected.", "Security breach.",
+                 "Service unavailable.", "Critical hardware failure."]
+  }
+  transaction_desc: ["Payment for subscription", "Refund for canceled subscription", 
+                     "Payment for product purchase", "Refund for canceled product purchase",
+                     "Payment for service", "Refund for canceled service",
+                     "Payment for product return", "Payment for product exchange"]
