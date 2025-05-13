@@ -1,76 +1,112 @@
 import logging
 import requests
 import csv
-
-# Инициализация логирования
-# Устанавливаем уровень логирования и формат сообщений
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+import os
+import sqlite3
+import yaml
 
 
-# Будем использовать класс DataExtractor для определения методов извлечения данных4
-# Для демонстрации определим два метода извлечения из API и из CSV
+logger = logging.getLogger(__name__)
+
+
+def load_config(config_path="config.yaml"):
+    """
+    Загружает конфигурацию из YAML файла.
+    
+    Args:
+        config_path (str): Путь к файлу конфигурации.
+        
+    Returns:
+        dict: Загруженная конфигурация.
+        
+    Raises:
+        FileNotFoundError: Если файл конфигурации не найден.
+    """
+    try:
+        with open(config_path, "r", encoding="utf8") as f:
+            return yaml.safe_load(f)
+    except FileNotFoundError:
+        logger.error(f"Файл конфигурации '{config_path}' не найден.")
+        raise
+
+
 class DataExtractor:
     def __init__(self, config: dict):
-        # config - словарь с настройками
-        # Он определяется в main.py при инициализации класса
+        """
+        Инициализирует экстрактор данных.
+        
+        Args:
+            config (dict): Словарь с конфигурацией.
+        """
         self.config = config
 
-    def extract_from_api(self, endpoint: str, headers: dict = None) -> dict | None:
-        """Метод извлечения данных из API
+    def extract_csv(self, file_path: str) -> list:
+        """
+        Извлекает данные из CSV файла.
 
         Args:
-            endpoint (str): адрес запроса к API
-            headers (dict, optional): Заголовки запроса к API. По умолчанию None.
-
+            file_path (str): Расположение CSV-файла.
+            
         Returns:
-            dict | None: словарь с данными или None в случае ошибки
+            list: Список строк из CSV файла.
+            
+        Raises:
+            Exception: При ошибке чтения файла.
         """
-        logging.info(f"Извлечение данных из API: {endpoint}")
-
-        if not headers:
-            # Если заголовки не указаны, используем headers из конфигурации
-            headers = self.config.get("headers", {})
         try:
-            response = requests.get(endpoint, headers=headers)
-            response.raise_for_status()  # Проверяем на наличие ошибок
-            try:
-                data = response.json()
-                logging.info("Данные успешно извлечены из API.")
-                return data
-            except ValueError:
-                logging.error("Ответ API не является JSON.")
-                return None
-        except (
-            requests.exceptions.HTTPError,
-            requests.exceptions.ConnectionError,
-            requests.exceptions.RequestException,
-        ) as e:
-            logging.error(f"Ошибка при извлечении данных из API: {e}")
-            return None
+            logger.info(f"Извлечение данных из файла '{file_path}'...")
+            with open(file_path, "r", newline="", encoding="utf-8") as csvfile:
+                reader = csv.reader(csvfile, delimiter=",")
+                data = list(reader)
+            
+            logger.info(f"Данные успешно извлечены из файла '{file_path}'.")
+            return data
 
-    def extract_from_csv(self, file_path: str) -> list | None:
-        """Метод извлечения данных из CSV файла
-
-        Args:
-            file_path (str): путь к файлу CSV
-
-        Returns:
-            list | None: список строк из CSV файла или None в случае ошибки
-        """
-        logging.info(f"Извлечение данных из CSV: {file_path}")
-        try:
-            with open(file_path, mode="r", encoding="utf-8") as file:
-                reader = csv.reader(file)
-                data = [row for row in reader]
-                logging.info("Данные успешно извлечены из CSV.")
-                return data
-        except FileNotFoundError:
-            logging.error(f"Файл не найден: {file_path}")
-            return None
         except Exception as e:
-            logging.error(f"Ошибка при извлечении данных из CSV: {e}")
-            return None
+            logger.error(f"Ошибка при извлечении данных из CSV: {e}")
+            raise
 
-    # Add other data extraction methods here
+    def extract_sqlite(self, query: str = None, db_path: str = None) -> list:
+        """
+        Извлекает данные из SQLite базы данных.
+
+        Args:
+            query (str, optional): SQL запрос. Если не указан, будет использован запрос по умолчанию.
+            db_path (str, optional): Расположение SQLite базы данных. Если не указан, 
+                                    будет использовано значение из конфигурации.
+                                    
+        Returns:
+            list: Результат выполнения запроса.
+            
+        Raises:
+            sqlite3.Error: При ошибке работы с базой данных.
+        """
+        if not db_path:
+            db_path = os.path.join(
+                self.config["data_sources"]["sqlite"],
+                self.config["sqlite_config"]["db_name"]
+            )
+
+        try:
+            logger.info(f"Извлечение данных из базы данных SQLite '{db_path}'...")
+            with sqlite3.connect(db_path) as conn:
+                cursor = conn.cursor()
+                if not query:
+                    query = self.config["sqlite_config"]["query"]
+                    
+                cursor.execute()
+                data = cursor.fetchall()
+                logger.info(f"Данные успешно извлечены из базы данных SQLite '{db_path}'.")
+                return data
+                    
+        except sqlite3.Error as e:
+            logger.error(f"Ошибка при работе с БД SQLite: {e}")
+            raise
+
+
+# Пример использования (закомментирован для использования как модуль)
+if __name__ == "__main__":
+    config = load_config()
+    extractor = DataExtractor(config)
+    data = extractor.extract_sqlite()
+    print(f"Извлечено {len(data) if data else 0} записей")
