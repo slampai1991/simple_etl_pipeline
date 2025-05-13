@@ -7,24 +7,6 @@ log_config:
 # Sqlite конфиг
 sqlite_config:
   db_name: "synth_sqlite_database.db"
-  predefined_queries:
-    get_all_users: "SELECT * FROM users;"
-    top_10_transactions: "SELECT * FROM transactions ORDER BY amount DESC LIMIT 10;"
-    recent_logs: "SELECT * FROM logs WHERE timestamp >= DATE('now', '-7 day');"
-    active_users_orders: >
-      SELECT u.name, o.id, o.status, o.timestamp
-      FROM users u
-      JOIN orders o ON u.id = o.user_id
-      WHERE o.status = 'COMPLETED';
-    product_popularity: >
-      SELECT p.name, COUNT(o.id) AS total_orders
-      FROM products p
-      JOIN orders o ON p.id = o.product_id
-      GROUP BY p.name
-      ORDER BY total_orders DESC
-      LIMIT 5;
-
-
 sqlite_tables:
   - name: users
     num_rows: 2500
@@ -89,10 +71,20 @@ csv_config:
   num_rows: 2500
   headers: ['ID', 'NAME', 'AGE', 'PHONE', 'EMAIL', 'COUNTRY', 'HIRE_DATE', 'DEPARTMENT', 'JOB_TITLE', 'SALARY']
 
+# MongoDB конфиг
+mongo_config:
+  db_name: synth_mongodb
+  collection_name: users
+  host: localhost
+  port: 27017
+  username: synth_user
+  password: synth_password
+  auth_db: admin
+  num_records: 10000
 
 # Источники данных
 data_sources:
-  api: {url: "https://api.example.com/data",
+  - api: {url: "https://api.example.com/data",
           method: GET,
           params: {param1: value1, param2: value2},
           headers:{
@@ -102,15 +94,17 @@ data_sources:
             }
             }
 
-  csv: "data" # Путь к CSV файлам
+  - csv: "data/*.csv" # Путь к CSV файлам
 
-  sqlite: "data" # Путь к SQLite файлам
+  - sqlite: "data/*.db" # Путь к SQLite файлам
 
 # Пути соханения
 data_destinations:
   csv: "data"
 
   sqlite: "data"
+
+  mongo: "data" 
 
 # Конфиг обработки данных
 transformations:

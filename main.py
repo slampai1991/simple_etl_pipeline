@@ -2,7 +2,6 @@ import yaml
 import os
 import logging
 import datetime
-import src.extract as extract
 import src.utils as utils
 
 try:
@@ -40,11 +39,14 @@ except PermissionError:
     )
 
 
-try:
-    datagen = utils.DataGenerator(config)
-    datagen.generate_sqlite()
-    extractor = extract.DataExtractor(config)
-    print(extractor.extract_sqlite("SELECT * FROM users"))
-except Exception as e:
-    logging.error(f"Ошибка при выполнении скрипта: {e}")
-    raise
+# Example usage
+# try:
+#     logging.info("Начало работы программы.")
+#     data_generator = utils.DataGenerator(config)
+#     data_generator.generate_sqlite(config["sqlite_config"]["db_name"])
+#     data_generator.generate_csv(config["csv_config"]["filename"])
+#     data_generator.generate_mongo(config["mongo_config"]["db_name"])
+#     logging.info("Конец работы программы.")
+# except Exception as e:
+#     logging.error(f"Произошла ошибка: {e}")
+#     raise e

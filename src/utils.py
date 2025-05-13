@@ -6,10 +6,6 @@ import logging
 import os
 import pymongo as mongo
 from datetime import datetime, timedelta
-import yaml
-
-
-logger = logging.getLogger(__name__)
 
 
 class DataGenerator:
@@ -23,16 +19,18 @@ class DataGenerator:
         self.config = config  # Конфигурация для генерации данных
         self.faker = faker.Faker()  # Генератор случайных данных
 
-    def generate_sqlite(self, db_name: str = None) -> None:
-        """Метод генерации синтетических данных для SQLite DB.
-        Параметры генерации указаны в yaml файле.
+    def generate_sqlite(self, db_name: str) -> None:
+        """
+        Метод генерации синтетических данных для SQLite DB.
+        Генерирует данные в зависимости от конфигурации, указанной в yaml файле.
 
         Args:
             db_name (str): Имя БД SQLite
         """
-
-        def _get_product_names(num_rows: int) -> set:
-            """Генерация уникальных названий товаров: случайные комбинации названий товаров, модели и цвета.
+        def get_product_names(num_rows: int) -> set:
+            """
+            Генерация уникальных названий товаров.
+            Генерирует случайные комбинации товаров, модели и цвета.
 
             Args:
                 num_rows (int): Количество строк для генерации.
@@ -40,13 +38,15 @@ class DataGenerator:
             Returns:
                 set: Множество уникальных названий товаров.
             """
+            ...
+            # Здесь можно использовать любые другие методы генерации (например, API или csv файлы)
             # Товары могут не совпадать с категориями, ведь это синтетические данные
             # В данном случае, просто совмещаем названия, модели и цвета в одну строку
+            # В реальных данных естественно будет более сложная логика
+            # Но мы не будем тратить время на это
 
-            logger.info("Генерация уникальных названий товаров...")
-            product_names = (
-                set()
-            )  # Используем set для соблюдения уникальности product name
+            logging.info("Генерация уникальных названий товаров...")
+            product_names = set()
 
             # Получаем списки из конфигурации
             products = self.config["word_lists"]["products"]
@@ -57,219 +57,171 @@ class DataGenerator:
                 product_name = f"{random.choice(colors)} {random.choice(products)} {random.choice(models)}"
                 product_names.add(product_name)
 
-            logger.info(
-                f"Названия товаров сгенерированы успешно. Уникальных названий: {len(product_names)}"
-            )
             return product_names
 
-        def _generate_data(table_name: str, num_rows: int, cursor) -> list:
-            """Генерация "грязных" данных для таблицы на основе имени и количества строк.
+        def generate_data(table_name: str, num_rows: int) -> list:
+            """
+            Генерация данных для таблицы на основе ее имени и количества строк.
+            Периодически добавляет None в данные для имитации отсутствующих значений.
 
             Args:
-                table_name (str): Имя таблицы.
-                num_rows (int): Количество генерируемых записей.
-                cursor: Объект курсора SQLite для выполнения SQL-запросов к базе данных
+                table_name (str): Имя таблицы
+                num_rows (int): Количество строк
 
             Returns:
-                list: Список сгенерированных данных.
+                list: Список сгенерированных данных
             """
-
-            def _maybe_dirty(value, dtype: str, nullable=True):
-                """Инструмент для внедрения аномалий в данные.
-
-                Args:
-                    value (any): Значение, которое будет внедрено в данные.
-                    dtype (str): Тип данных.
-                    nullable (bool, optional): Допуск значения None. По умолчанию True.
-
-                Returns:
-                    any: Значение с аномалиями или None.
-                """
-                if random.random() > 0.1:
-                    return value  # 90% данных остаются корректными
-
-                # 10% – грязные
-                match dtype:
-                    case "TEXT":
-                        return random.choice(
-                            ["", None if nullable else "", "!!!", "123", "\x00"]
-                        )
-                    case "INTEGER":
-                        return (
-                            random.choice([None, -999, "NaN", 9999999999])
-                            if nullable
-                            else random.choice([-1, 200, "oops"])
-                        )
-                    case "REAL":
-                        return random.choice([None, -1.234, "abc", 99999999.9])
-                    case "DATE":
-                        return random.choice(
-                            ["not-a-date", "31-31-2020", None, "2050-01-01"]
-                        )
-                    case _:
-                        logger.info(
-                            f"Неизвестный тип данных '{dtype}'. Используется 'TEXT'."
-                        )
-
-                return value
-
             data = []
 
+            # Можно конечно использоать if-elif,
+            # но я всегда хотел попробовать match-case и здесь это уместно
             match table_name:
                 case "users":
                     for _ in range(num_rows):
-                        name = _maybe_dirty(self.faker.name(), "TEXT")
-                        age = _maybe_dirty(random.randint(1, 99), "INTEGER")
-                        phone = _maybe_dirty(self.faker.phone_number(), "TEXT")
-                        email = _maybe_dirty(self.faker.email(), "TEXT")
-                        country = _maybe_dirty(self.faker.country(), "TEXT")
-                        reg_date = _maybe_dirty(
+                        data.append(
                             (
-                                datetime.now() - timedelta(days=random.randint(0, 3650))
-                            ).strftime("%Y-%m-%d"),
-                            "DATE",
+                                None,
+                                self.faker.name(),
+                                random.randint(18, 90),
+                                self.faker.phone_number(),
+                                self.faker.email(),
+                                self.faker.country(),
+                                (
+                                    datetime.now()
+                                    - timedelta(days=random.randint(0, 3650))
+                                ).strftime("%Y-%m-%d"),
+                            )
                         )
-                        data.append((None, name, age, phone, email, country, reg_date))
-
-                case "products":
-                    product_names = _get_product_names(num_rows)
-                    for _ in range(num_rows):
-                        name = _maybe_dirty(product_names.pop(), "TEXT")
-                        category = _maybe_dirty(
-                            random.choice(self.config["word_lists"]["categories"]),
-                            "TEXT",
-                        )
-                        price = _maybe_dirty(round(random.uniform(1, 2500), 2), "REAL")
-                        data.append((None, name, category, price))
-
-                case "logs":
-                    for _ in range(num_rows):
-                        severity = _maybe_dirty(
-                            random.choice(["INFO", "WARNING", "ERROR", "CRITICAL"]),
-                            "TEXT",
-                        )
-                        message = _maybe_dirty(
-                            random.choice(
-                                self.config["word_lists"]["log_messages"].get(
-                                    severity, ["default error"]
-                                )
-                            ),
-                            "TEXT",
-                        )
-                        timestamp = _maybe_dirty(
-                            (
-                                datetime.now() - timedelta(days=random.randint(0, 365))
-                            ).strftime("%Y-%m-%d %H:%M:%S"),
-                            "DATE",
-                        )
-                        data.append((None, severity, message, timestamp))
-
                 case "transactions":
                     cursor.execute("SELECT id FROM users")
                     user_ids = [row[0] for row in cursor.fetchall()]
-                    unique = set()
+                    unique_combinations = (
+                        set()
+                    )  # Track unique (user_id, date) combinations
 
                     for _ in range(num_rows):
                         while True:
-                            uid = random.choice(user_ids)
-                            ts = (
+                            user_id = random.choice(user_ids)
+                            date = (
                                 datetime.now() - timedelta(days=random.randint(0, 365))
                             ).strftime("%Y-%m-%d %H:%M:%S")
-                            if (uid, ts) not in unique:
-                                unique.add((uid, ts))
+                            if (user_id, date) not in unique_combinations:
+                                unique_combinations.add((user_id, date))
                                 break
-                        amount = _maybe_dirty(
-                            round(random.uniform(10.0, 1000.0), 2), "REAL"
-                        )
-                        description = _maybe_dirty(
-                            random.choice(
-                                self.config["word_lists"]["transaction_desc"]
-                            ),
-                            "TEXT",
-                        )
-                        status = _maybe_dirty(
-                            random.choice(
-                                ["PENDING", "COMPLETED", "FAILED", "CANCELLED"]
-                            ),
-                            "TEXT",
-                        )
-                        data.append((uid, amount, ts, description, status))
 
+                        data.append(
+                            (
+                                user_id,
+                                round(random.uniform(10.0, 1000.0), 2),
+                                date,
+                                random.choice(
+                                    self.config["word_lists"]["transaction_desc"]
+                                ),
+                                random.choice(
+                                    ["PENDING", "COMPLETED", "FAILED", "CANCELLED"]
+                                ),
+                            )
+                        )
+                case "products":
+                    products = get_product_names(num_rows)
+                    for _ in range(num_rows):
+                        data.append(
+                            (
+                                None,
+                                products.pop(),
+                                random.choice(self.config["word_lists"]["categories"]),
+                                round(random.uniform(1, 2500), 2),
+                            )
+                        )
+                case "logs":
+                    for _ in range(num_rows):
+                        severity = (
+                            random.choice(["INFO", "WARNING", "ERROR", "CRITICAL"])
+                            .strip()
+                            .upper()
+                        )
+                        data.append(
+                            (
+                                None,
+                                severity,
+                                random.choice(
+                                    self.config["word_lists"]["log_messages"][severity]
+                                ),
+                                (
+                                    datetime.now()
+                                    - timedelta(days=random.randint(0, 365))
+                                ).strftime("%Y-%m-%d %H:%M:%S"),
+                            )
+                        )
                 case "user_actions":
                     cursor.execute("SELECT id FROM users")
                     user_ids = [row[0] for row in cursor.fetchall()]
-                    unique = set()
+
+                    unique_combinations = (
+                        set()
+                    )  # Отслеживание уникальных (user_id, timestamp)
 
                     for _ in range(num_rows):
                         while True:
-                            uid = random.choice(user_ids)
-                            ts = (
+                            user_id = random.choice(user_ids)
+                            timestamp = (
                                 datetime.now() - timedelta(days=random.randint(0, 365))
                             ).strftime("%Y-%m-%d %H:%M:%S")
-                            if (uid, ts) not in unique:
-                                unique.add((uid, ts))
+                            if (user_id, timestamp) not in unique_combinations:
+                                unique_combinations.add((user_id, timestamp))
                                 break
-                        action = _maybe_dirty(
-                            random.choice(self.config["word_lists"]["actions"]), "TEXT"
-                        )
-                        data.append((uid, action, ts))
 
+                        data.append(
+                            (
+                                user_id,
+                                random.choice(self.config["word_lists"]["actions"]),
+                                timestamp,
+                            )
+                        )
                 case "orders":
                     cursor.execute("SELECT id FROM users")
                     user_ids = [row[0] for row in cursor.fetchall()]
+
                     cursor.execute("SELECT id FROM products")
                     product_ids = [row[0] for row in cursor.fetchall()]
 
                     for _ in range(num_rows):
-                        uid = random.choice(user_ids)
-                        pid = random.choice(product_ids)
-                        date = _maybe_dirty(
+                        data.append(
                             (
-                                datetime.now() - timedelta(days=random.randint(0, 365))
-                            ).strftime("%Y-%m-%d %H:%M:%S"),
-                            "DATE",
+                                None,
+                                random.choice(user_ids),
+                                random.choice(product_ids),
+                                (
+                                    datetime.now()
+                                    - timedelta(days=random.randint(0, 365))
+                                ).strftime("%Y-%m-%d %H:%M:%S"),
+                                random.choice(
+                                    self.config["word_lists"]["order_status"]
+                                ),
+                                random.randint(1, 5),
+                            )
                         )
-                        status = _maybe_dirty(
-                            random.choice(
-                                [
-                                    "PENDING",
-                                    "SHIPPED",
-                                    "DELIVERED",
-                                    "RETURNED",
-                                    "COMPLETED",
-                                    "CANCELLED",
-                                ]
-                            ),
-                            "TEXT",
-                        )
-                        amount = _maybe_dirty(round(random.uniform(1, 2500), 2), "REAL")
-                        data.append((None, uid, pid, date, status, amount))
-
                 case _:
-                    logger.warning(f"Неизвестная таблица '{table_name}'")
+                    logging.warning(
+                        f"Неизвестная таблица '{table_name}'. Пропуск генерации данных."
+                    )
                     return []
 
             return data
 
         try:
-            logger.info("Подключение к БД SQLite.")
+            logging.info("Подключение к БД SQLite.")
             # Проверяем, существует ли директория для сохранения файла
             destination_path = self.config["data_destinations"]["sqlite"]
-
             if not os.path.exists(destination_path):
                 os.makedirs(destination_path, exist_ok=True)
                 logging.info(f"Создана директория {destination_path}")
-
-            if db_name is None:
-                db_name = self.config["sqlite_config"]["db_name"]
-            
             db_name = os.path.join(destination_path, db_name)
-
             conn = sqlite3.connect(db_name)
             cursor = conn.cursor()
-            logger.info(f"Подключение к БД SQLite успешно.")
+            logging.info(f"Подключение к БД SQLite успешно.")
 
-            logger.info("Создание таблиц и заполнение их данными.")
+            logging.info("Создание таблиц и заполнение их данными.")
             # Создание таблиц на основе конфигурации
             for table in self.config["sqlite_tables"]:
                 table_name = table["name"]
@@ -283,18 +235,18 @@ class DataGenerator:
                 constraints = ", ".join(table.get("constraints", []))
                 create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns}{', ' + constraints if constraints else ''});"
                 cursor.execute(create_table_query)
-                logger.info(f"Таблица '{table_name}' успешно создана.")
+                logging.info(f"Таблица '{table_name}' успешно создана.")
 
             for table in self.config["sqlite_tables"]:
                 table_name = table["name"]
                 num_rows = table["num_rows"]
-                logger.info(f"Генерация {num_rows} строк для таблицы '{table_name}'.")
-                data = _generate_data(table_name, num_rows, cursor)
-                logger.info(f"Генерация данных для таблицы '{table_name}' завершена.")
+                logging.info(f"Генерация {num_rows} строк для таблицы '{table_name}'.")
+                data = generate_data(table_name, num_rows)
+                logging.info(f"Генерация данных для таблицы '{table_name}' завершена.")
 
-                logger.info(f"Вставка данных в таблицу '{table_name}'...")
+                logging.info(f"Вставка данных в таблицу '{table_name}'...")
                 if not data:
-                    logger.warning(
+                    logging.warning(
                         f"Нет данных для генерации в таблице '{table_name}'."
                     )
                     continue
@@ -302,76 +254,129 @@ class DataGenerator:
                 placeholders = ", ".join(["?"] * len(data[0]))
                 insert_query = f"INSERT INTO {table_name} VALUES ({placeholders})"
                 cursor.executemany(insert_query, data)
-                logger.info(
+                logging.info(
                     f"Данные для таблицы '{table_name}' успешно сгенерированы и вставлены."
                 )
 
             conn.commit()
-            logger.info("Данные успешно сохранены в БД SQLite.")
+            logging.info("Данные успешно сохранены в БД SQLite.")
         except sqlite3.Error as e:
-            logger.error(f"Ошибка при работе с БД SQLite: {e}")
+            logging.error(f"Ошибка при работе с БД SQLite: {e}")
             raise
 
     def generate_csv(self, csv_name: str) -> None:
-        """Метод для генерации синтетических данных для CSV файла.
-        Параметры генерации указаны в yaml файле.
+        """
+        Метод для генерации синтетических данных в CSV файле.
+        Генерирует данные в зависимости от конфигурации, указанной в yaml файле.
 
         Args:
             csv_name (str): Имя генерируемого CSV файла.
         """
-        def _inject_dirty_data(self, value, column_name: str):
-            """Вставляет грязные данные с некоторой вероятностью."""
-
-            if random.random() > 0.1:
-                return value
-
-            strategies = [
-                lambda: "",  # Пустое значение
-                lambda: "###ERROR###",  # Ошибочное значение
-                lambda: str(value) * 10,  # Аномально длинное значение
-                lambda: None,  # None как ошибка
-            ]
-    
-            if column_name in ["age", "salary"]:
-                strategies.append(lambda: -random.randint(1, 100))  # Отрицательное число
-    
-            return random.choice(strategies)()
-        
         try:
-            logger.info("Генерация данных и запись в CSV файл.")
-            csv_path = os.path.join(self.config["data_destinations"]["csv"], csv_name)
-
-            with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+            logging.info("Генерация данных и запись в CSV файл.")
+            with open(
+                os.path.join(self.config["data_destinations"]["csv"], csv_name),
+                "w+",
+                newline="",
+                encoding="utf-8",
+            ) as csvfile:
+                # Создание CSV writer объекта для записи данных
                 writer = csv.writer(csvfile)
-                headers = self.config["csv_config"]["headers"]
-                writer.writerow(headers)
+                # Запись заголовков
+                writer.writerow(self.config["csv_config"]["headers"])
 
-                for idx in range(1, self.config["csv_config"]["num_rows"] + 1):
-                    raw_row = {
-                        "id": idx,
-                        "name": self.faker.name(),
-                        "age": random.randint(18, 65),
-                        "phone": self.faker.phone_number(),
-                        "email": self.faker.email(),
-                        "country": self.faker.country(),
-                        "hire_date": (
+                # Генерация данных и их запись
+                for _ in range(1, self.config["csv_config"]["num_rows"] + 1):
+                    row = [
+                        _,
+                        self.faker.name(),
+                        random.randint(18, 65),
+                        self.faker.phone_number(),
+                        self.faker.email(),
+                        self.faker.country(),
+                        (
                             datetime.now() - timedelta(days=random.randint(0, 3650))
                         ).strftime("%Y-%m-%d"),
-                        "department": random.choice(["HR", "Engineering", "Sales", "Marketing"]),
-                        "job_title": random.choice([
-                            "Manager", "Engineer", "Analyst", "Specialist", "Consultant", "Coordinator", "Director"
-                        ]),
-                        "salary": random.randint(30000, 150000),
-                    }
-
-                    dirty_row = [
-                        self._inject_dirty_data(raw_row[col], col) for col in headers
+                        random.choice(
+                            ["HR", "Engineering", "Sales", "Marketing"]
+                        ),  # DEPARTMENT
+                        random.choice(
+                            [
+                                "Manager",
+                                "Engineer",
+                                "Analyst",
+                                "Specialist",
+                                "Consultant",
+                                "Coordinator",
+                                "Director",
+                            ]
+                        ),  # JOB TITLE
+                        random.randint(30000, 150000),  # SALARY
                     ]
-                    writer.writerow(dirty_row)
+                    writer.writerow(row)
 
-            logger.info(f"Данные успешно сохранены в файл '{csv_name}'.")
+            logging.info(f"Данные успешно сохранены в файл '{csv_name}'.")
         except Exception as e:
-            logger.error(f"Ошибка при генерации CSV: {e}")
+            logging.error(f"Ошибка при генерации CSV: {e}")
+            raise
+
+    def generate_mongo(self, db_name: str) -> None:
+        """
+        Метод генерации синтетических данных для MongoDB.
+
+        Args:
+            db_name (str): Имя коллекции MongoDB.
+        """
+
+        def generate_user_data(num_records: int) -> list:
+            """Генерирует данные для вставки в MongoDB
+
+            Args:
+                num_records (int): Количество генерируемых записей
+
+            Returns:
+                list: Результирующие данные
+            """
+            users = []
+            for _ in range(num_records):
+                user = {
+                    "name": self.faker.name(),
+                    "registration_date": str(
+                        self.faker.date_between(start_date="-5y", end_date="today")
+                    ),
+                    "address": {
+                        "street": self.faker.street_address(),
+                        "city": self.faker.city(),
+                        "zipcode": self.faker.zipcode(),
+                    },
+                    "transaction_history": [
+                        {
+                            "date": str(self.faker.date_this_year()),
+                            "amount": round(random.uniform(10, 500), 2),
+                        }
+                        for _ in range(random.randint(1, 5))
+                    ],
+                    "is_active": random.choice([True, False]),
+                }
+                users.append(user)
+            return users
+
+        try:
+            logging.info("Подключение к MongoDB.")
+            client = mongo.MongoClient(
+                host=self.config["mongo_config"]["host"],
+                port=self.config["mongo_config"]["port"],
+            )
+            logging.info("Подключение к MongoDB успешно.")
+            db = client[self.config["mongo_config"]["db_name"]]
+            users_col = db[self.config["mongo_config"]["collection_name"]]
+            logging.info("Создание коллекции и вставка данных.")
+            users_col.insert_many(
+                generate_user_data(self.config["mongo_config"]["num_records"])
+            )
+            logging.info("Данные успешно вставлены в MongoDB.")
+        except Exception as e:
+            logging.error(f"Ошибка при вставке данных в MongoDB: {e}")
             raise
 
     # По аналогии можно добавить другие методы: JSON, MongoDB, etc.
