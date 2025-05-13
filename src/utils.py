@@ -319,7 +319,7 @@ class DataGenerator:
         Args:
             csv_name (str): Имя генерируемого CSV файла.
         """
-        def _inject_dirty_data(self, value, column_name: str):
+        def _inject_dirty_data(value, column_name: str):
             """Вставляет грязные данные с некоторой вероятностью."""
 
             if random.random() > 0.1:
@@ -336,7 +336,7 @@ class DataGenerator:
                 strategies.append(lambda: -random.randint(1, 100))  # Отрицательное число
     
             return random.choice(strategies)()
-        
+
         try:
             logger.info("Генерация данных и запись в CSV файл.")
             csv_path = os.path.join(self.config["data_destinations"]["csv"], csv_name)
@@ -365,7 +365,7 @@ class DataGenerator:
                     }
 
                     dirty_row = [
-                        self._inject_dirty_data(raw_row[col], col) for col in headers
+                        _inject_dirty_data(raw_row[col], col) for col in headers
                     ]
                     writer.writerow(dirty_row)
 
