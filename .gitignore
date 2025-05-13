@@ -39,3 +39,4 @@ logs
 *.sqlite3
 *.db
 *.csv
+*.db-journal
