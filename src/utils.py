@@ -4,9 +4,7 @@ import random
 import faker
 import logging
 import os
-import pymongo as mongo
 from datetime import datetime, timedelta
-import yaml
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +21,7 @@ class DataGenerator:
         self.config = config  # Конфигурация для генерации данных
         self.faker = faker.Faker()  # Генератор случайных данных
 
-    def generate_sqlite(self, db_name: str = None) -> None:
+    def generate_sqlite(self, db_name: str | None = None) -> None:
         """Метод генерации синтетических данных для SQLite DB.
         Параметры генерации указаны в yaml файле.
 
@@ -251,6 +249,7 @@ class DataGenerator:
 
             return data
 
+        conn = None
         try:
             logger.info("Подключение к БД SQLite.")
             # Проверяем, существует ли директория для сохранения файла
@@ -262,10 +261,13 @@ class DataGenerator:
 
             if db_name is None:
                 db_name = self.config["sqlite_config"]["db_name"]
-            
-            db_name = os.path.join(destination_path, db_name)
+                logger.info(
+                    f"Не передано название БД - db_name.\nБудет использовано значение по умолчанию - {self.config['sqlite_config']['db_name']}"
+                )
 
-            conn = sqlite3.connect(db_name)
+            db_path = os.path.join(destination_path, str(db_name))
+
+            conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             logger.info(f"Подключение к БД SQLite успешно.")
 
@@ -309,8 +311,11 @@ class DataGenerator:
             conn.commit()
             logger.info("Данные успешно сохранены в БД SQLite.")
         except sqlite3.Error as e:
-            logger.error(f"Ошибка при работе с БД SQLite: {e}")
-            raise
+            logger.error(f"Ошибка при работе с БД SQLite {e}")
+        finally:
+            if conn:
+                conn.close()
+                logger.info("Соединение с БД SQLite закрыто.")
 
     def generate_csv(self, csv_name: str) -> None:
         """Метод для генерации синтетических данных для CSV файла.
@@ -319,6 +324,7 @@ class DataGenerator:
         Args:
             csv_name (str): Имя генерируемого CSV файла.
         """
+
         def _inject_dirty_data(value, column_name: str):
             """Вставляет грязные данные с некоторой вероятностью."""
 
@@ -331,10 +337,12 @@ class DataGenerator:
                 lambda: str(value) * 10,  # Аномально длинное значение
                 lambda: None,  # None как ошибка
             ]
-    
+
             if column_name in ["age", "salary"]:
-                strategies.append(lambda: -random.randint(1, 100))  # Отрицательное число
-    
+                strategies.append(
+                    lambda: -random.randint(1, 100)
+                )  # Отрицательное число
+
             return random.choice(strategies)()
 
         try:
@@ -357,10 +365,20 @@ class DataGenerator:
                         "hire_date": (
                             datetime.now() - timedelta(days=random.randint(0, 3650))
                         ).strftime("%Y-%m-%d"),
-                        "department": random.choice(["HR", "Engineering", "Sales", "Marketing"]),
-                        "job_title": random.choice([
-                            "Manager", "Engineer", "Analyst", "Specialist", "Consultant", "Coordinator", "Director"
-                        ]),
+                        "department": random.choice(
+                            ["HR", "Engineering", "Sales", "Marketing"]
+                        ),
+                        "job_title": random.choice(
+                            [
+                                "Manager",
+                                "Engineer",
+                                "Analyst",
+                                "Specialist",
+                                "Consultant",
+                                "Coordinator",
+                                "Director",
+                            ]
+                        ),
                         "salary": random.randint(30000, 150000),
                     }
 

@@ -31,7 +31,7 @@ sqlite_tables:
     columns:
       - id: INTEGER PRIMARY KEY AUTOINCREMENT
       - name: TEXT
-      - age: INTEGER CHECK(age > 0 AND age < 100)
+      - age: INTEGER
       - phone: TEXT
       - email: TEXT
       - country: TEXT
@@ -42,12 +42,12 @@ sqlite_tables:
       - id: INTEGER PRIMARY KEY AUTOINCREMENT
       - name: TEXT
       - category: TEXT
-      - price: REAL CHECK(price > 0)
+      - price: REAL
   - name: logs
     num_rows: 100000
     columns:
       - id: INTEGER PRIMARY KEY AUTOINCREMENT
-      - severity: TEXT CHECK(severity IN ('INFO', 'WARNING', 'ERROR', 'CRITICAL'))
+      - severity: TEXT
       - error_message: TEXT
       - timestamp: TEXT
   - name: transactions
@@ -57,7 +57,7 @@ sqlite_tables:
       - amount: REAL
       - date: TEXT
       - description: TEXT
-      - status: TEXT CHECK(status IN ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'))
+      - status: TEXT
     constraints:
       - PRIMARY KEY (user_id, date)
       - FOREIGN KEY (user_id) REFERENCES users(id)
@@ -77,8 +77,8 @@ sqlite_tables:
       - user_id: INTEGER
       - product_id: INTEGER
       - purchase_date: TEXT
-      - status: TEXT CHECK(status IN ('PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'))
-      - amount: REAL CHECK(amount > 0)
+      - status: TEXT
+      - amount: REAL
     constraints:
       - FOREIGN KEY (user_id) REFERENCES users(id)
       - FOREIGN KEY (product_id) REFERENCES products(id)
@@ -86,7 +86,7 @@ sqlite_tables:
 # CSV конфиг
 csv_config:
   filename: employees_synth_data.csv
-  num_rows: 2500
+  num_rows: 10000
   headers: ['ID', 'NAME', 'AGE', 'PHONE', 'EMAIL', 'COUNTRY', 'HIRE_DATE', 'DEPARTMENT', 'JOB_TITLE', 'SALARY']
 
 
@@ -114,13 +114,23 @@ data_destinations:
 
 # Конфиг обработки данных
 transformations:
-  - name: clean_data
+  clean_data:
     type: drop_nulls
     columns: "*"  # Указывает, что фильтрация будет применяться ко всем столбцам
 
-  - name: remove_duplicates
+  remove_duplicates:
     type: drop_duplicates
     columns: "*"  # Указывает, что удаление дубликатов будет применяться ко всем столбцам
+  
+  check_constraints:
+    age: "age > 0 AND age < 100"
+    email: "email LIKE '%@%.%'"
+    price: "price > 0"
+    severity: "severity IN ('INFO', 'WARNING', 'ERROR', 'CRITICAL')"
+    transaction_status: "status IN ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED')"
+    order_status: "status IN ('PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED')"
+    amount: "amount > 0"
+
 
 # Наборы слов для генерации названий товаров
 word_lists:

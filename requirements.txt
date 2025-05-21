@@ -5,4 +5,4 @@ matplotlib
 seaborn
 apache-airflow
 flask
-pymongo
+faker
