@@ -1,72 +1,75 @@
 import logging
-from main import load_config
+import os
+import sqlite3
+import pandas as pd
 
-# Initialize logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+logger = logging.getLogger(__name__)
+
 
 class DataTransformer:
-    def __init__(self):
-        self.config = load_config()
+    """
+    Класс-обработчик данных.
+    Содержит методы преобразования извлеченных данных.
+    """
 
-    def normalize_to_1nf(self, data):
+    def __init__(self, config: dict) -> None:
+        self.config = config
+
+    def transform_sqlite(self, data: dict[str, list[tuple]]) -> dict[str, pd.DataFrame]:
         """
-        Нормализация данных до 1НФ (Первая Нормальная Форма).
+        Обрабатывает данные SQLite согласно конфигурации:
+        - Удаление null-значений
+        - Удаление дубликатов
 
-        :param data: Список словарей с данными для нормализации.
-        :return: Список словарей с нормализованными данными.
+        Args:
+            data (dict): Словарь с таблицами и их данными (результат extract_sqlite)
+
+        Returns:
+            dict: Трансформированные данные в виде DataFrame по таблицам
         """
-        normalized_data = []
-        for record in data:
-            for key, value in record.items():
-                if isinstance(value, list):
-                    for item in value:
-                        new_record = record.copy()
-                        new_record[key] = item
-                        normalized_data.append(new_record)
-                else:
-                    normalized_data.append(record)
-        logging.info("Данные нормализованы до 1НФ.")
-        return normalized_data
 
-    def normalize_to_2nf(self, data, primary_key, dependent_columns):
-        """
-        Нормализация данных до 2НФ (Вторая Нормальная Форма).
+        config = self.config.get("transformations", {})
+        transformed = {}
 
-        :param data: Список словарей с данными для нормализации.
-        :param primary_key: Поле, используемое в качестве первичного ключа.
-        :param dependent_columns: Список зависимых столбцов для выделения в отдельную таблицу.
-        :return: Кортеж из двух списков: основная таблица и зависимая таблица.
-        """
-        main_table = []
-        dependent_table = []
+        for table_name, rows in data.items():
+            if not rows:
+                continue
 
-        for record in data:
-            main_record = {key: record[key] for key in record if key not in dependent_columns}
-            dependent_record = {key: record[key] for key in dependent_columns}
-            dependent_record[primary_key] = record[primary_key]
+            logger.info(f"Преобразование таблицы: {table_name}")
+            df = pd.DataFrame(rows)
 
-            main_table.append(main_record)
-            dependent_table.append(dependent_record)
+            # Получение названий колонок
+            with sqlite3.connect(
+                os.path.join(
+                    self.config["data_sources"]["sqlite"],
+                    self.config["sqlite_config"]["db_name"],
+                )
+            ) as conn:
+                cursor = conn.execute(f"PRAGMA table_info({table_name});")
+                columns = [row[1] for row in cursor.fetchall()]
+                df.columns = columns
 
-        logging.info("Данные нормализованы до 2НФ.")
-        return main_table, dependent_table
+            # Удаление null-ов
+            clean_cfg = config.get("clean_data", {})
+            if clean_cfg.get("type") == "drop_nulls":
+                cols = clean_cfg.get("columns", "*")
+                (
+                    df.dropna(inplace=True)
+                    if cols == "*"
+                    else df.dropna(subset=cols, inplace=True)
+                )
 
-if __name__ == "__main__":
-    transformer = DataTransformer()
+            # Удаление дубликатов
+            dup_cfg = config.get("remove_duplicates", {})
+            if dup_cfg.get("type") == "drop_duplicates":
+                cols = dup_cfg.get("columns", "*")
+                (
+                    df.drop_duplicates(inplace=True)
+                    if cols == "*"
+                    else df.drop_duplicates(subset=cols, inplace=True)
+                )
 
-    # Пример использования
-    sample_data = [
-        {"id": 1, "name": "John", "hobbies": ["reading", "swimming"], "city": "New York"},
-        {"id": 2, "name": "Jane", "hobbies": ["dancing"], "city": "Los Angeles"}
-    ]
+            transformed[table_name] = df.reset_index(drop=True)
 
-    # Normalize to 1NF
-    data_1nf = transformer.normalize_to_1nf(sample_data)
-    logging.info(f"1НФ Данные: {data_1nf}")
-
-    # Normalize to 2NF
-    primary_key = "id"
-    dependent_columns = ["city"]
-    main_table, dependent_table = transformer.normalize_to_2nf(data_1nf, primary_key, dependent_columns)
-    logging.info(f"Основная таблица: {main_table}")
-    logging.info(f"Зависимая таблица: {dependent_table}")
+        return transformed

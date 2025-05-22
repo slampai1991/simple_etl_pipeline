@@ -116,20 +116,34 @@ data_destinations:
 transformations:
   clean_data:
     type: drop_nulls
-    columns: "*"  # Указывает, что фильтрация будет применяться ко всем столбцам
+    columns: "*"  # "*" — все столбцы, либо ["col1", "col2"]
 
   remove_duplicates:
     type: drop_duplicates
-    columns: "*"  # Указывает, что удаление дубликатов будет применяться ко всем столбцам
+    columns: "*"
+
+# Конфиг дата валидатора
+validation:
+  foreign_keys:
+    orders:
+      user_id: users
+      product_id: products
+    transactions:
+      user_id: users
+    user_actions:
+      user_id: users
   
-  check_constraints:
-    age: "age > 0 AND age < 100"
-    email: "email LIKE '%@%.%'"
-    price: "price > 0"
-    severity: "severity IN ('INFO', 'WARNING', 'ERROR', 'CRITICAL')"
-    transaction_status: "status IN ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED')"
-    order_status: "status IN ('PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED')"
-    amount: "amount > 0"
+  
+  constraints:
+    rules:
+      age: "age > 0 and age < 100"
+      email: "email.str.contains(r'^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$', na=False)"
+      price: "price > 0"
+      severity: "severity.isin(['INFO', 'WARNING', 'ERROR', 'CRITICAL'])"
+      transaction_status: "status.isin(['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'])"
+      order_status: "status.isin(['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'])"
+      amount: "amount > 0"
+
 
 
 # Наборы слов для генерации названий товаров

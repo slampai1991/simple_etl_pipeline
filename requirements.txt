@@ -1,4 +1,3 @@
-# Required Python packages
 pandas
 numpy
 matplotlib

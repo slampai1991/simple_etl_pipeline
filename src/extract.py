@@ -1,5 +1,4 @@
 import logging
-import requests
 import os
 import sqlite3
 import csv
@@ -8,6 +7,10 @@ logger = logging.getLogger(__name__)
 
 
 class DataExtractor:
+    """
+    Класс содержащий методы извлечения данных.
+    Пока реализованы только два метода: sqlite и csv экстракторы.
+    """
     def __init__(self, config: dict):
         self.config = config
 
@@ -46,21 +49,28 @@ class DataExtractor:
             raise
 
     def extract_sqlite(
-        self, query: str | None = None, db_path: str | None = None
-    ) -> list:
+        self,
+        db_path: str | None = None,
+        table_name: str | None = None,
+        query: str | None = None,
+    ) -> dict[str, list[tuple]]:
         """
-        Извлекает данные из SQLite базы данных.
+        Извлекает данные из SQLite БД.
+        Поддерживает извлечение:
+        - по произвольному SQL-запросу;
+        - одной таблицы по имени;
+        - всех таблиц в БД.
 
         Args:
-            query (str, optional): SQL запрос. Если не указан, будет использован запрос по умолчанию.
-            db_path (str, optional): Расположение SQLite базы данных. Если не указан,
-                                    будет использовано значение из конфигурации.
+            db_path (str, optional): Путь к SQLite БД. По умолчанию — из конфигурации.
+            table_name (str, optional): Имя таблицы для извлечения. Если None — извлекаются все.
+            query (str, optional): Пользовательский SQL-запрос. Если задан — используется вместо table_name.
 
         Returns:
-            list: Результат выполнения запроса.
+            dict[str, list[tuple]]: Словарь с именами таблиц и извлечёнными данными.
 
         Raises:
-            sqlite3.Error: При ошибке работы с базой данных.
+            sqlite3.Error: В случае ошибки доступа к БД.
         """
         if not db_path:
             db_path = os.path.join(
@@ -68,26 +78,39 @@ class DataExtractor:
                 self.config["sqlite_config"]["db_name"],
             )
 
-        if not query:
-            query = self.config["sqlite_config"]["predefined_queries"]["get_all_users"]
+        extracted_data = {}
 
         try:
-            logger.info(f"Извлечение данных из базы данных SQLite '{db_path}'...")
-            logger.info(f"Запрос: {query}")
+            logger.info(f"Открытие подключения к БД: {db_path}")
             with sqlite3.connect(str(db_path)) as conn:
                 cursor = conn.cursor()
-                if not query:
-                    query = self.config["sqlite_config"]["query"]
 
-                cursor.execute(str(query))
-                data = cursor.fetchall()
-                logger.info(
-                    f"Данные успешно извлечены из базы данных SQLite '{db_path}'."
+                if query:
+                    logger.info(f"Извлечение по пользовательскому SQL-запросу: {query}")
+                    cursor.execute(query)
+                    extracted_data["custom_query"] = cursor.fetchall()
+                    return extracted_data
+
+                if table_name:
+                    logger.info(f"Извлечение таблицы '{table_name}' из БД.")
+                    cursor.execute(f"SELECT * FROM {table_name}")
+                    extracted_data[table_name] = cursor.fetchall()
+                    return extracted_data
+
+                # Извлечение всех таблиц
+                logger.info("Извлечение всех таблиц из БД.")
+                cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
                 )
-                return data
+                tables = [row[0] for row in cursor.fetchall()]
+
+                for tbl in tables:
+                    logger.info(f"Извлечение таблицы: {tbl}")
+                    cursor.execute(f"SELECT * FROM {tbl}")
+                    extracted_data[tbl] = cursor.fetchall()
+
+                return extracted_data
 
         except sqlite3.Error as e:
-            logger.error(f"Ошибка при работе с БД SQLite: {e}")
+            logger.error(f"Ошибка при извлечении данных: {e}")
             raise
-
-    # Дальше можно добавлять любые подходящие методы извлечения

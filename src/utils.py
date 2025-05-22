@@ -4,6 +4,7 @@ import random
 import faker
 import logging
 import os
+import pandas as pd
 from datetime import datetime, timedelta
 
 
@@ -11,12 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 class DataGenerator:
-    # Генератор синтетических данных разных типов (логи, транзакции и т.д.)
-    # и разных форматов (CSV, SQLite DB и т.д.)
-    # В зависимости от конфигурации, он может генерировать данные в разных форматах
-    # Сохраняет данные в заданных форматах локально
-    # При необходимости можешь дописать нужные методы, или изменить логику существующих
-    # В любом случае, не забудь внести изменения и в конфиг файл
+    """
+    Генератор синтетических данных разных типов (логи, транзакции и т.д.)
+    и разных форматов (CSV, SQLite DB и т.д.)
+    В зависимости от конфигурации, он может генерировать данные в разных форматах.
+    Сохраняет данные в заданных форматах локально.
+    При необходимости можешь дописать нужные методы, или изменить логику существующих.
+    В любом случае, не забудь внести изменения и в конфиг файл.
+    """
+
     def __init__(self, config: dict):
         self.config = config  # Конфигурация для генерации данных
         self.faker = faker.Faker()  # Генератор случайных данных
@@ -396,7 +400,80 @@ class DataGenerator:
 
 
 class DataValidator:
-    pass
+    """
+    Класс для валидации DataFrame-данных:
+    - Проверка ссылочной целостности
+    - Проверка пользовательских ограничений
+    """
+
+    def __init__(self, validation_config: dict):
+        self.fk_config = validation_config.get("foreign_keys", {})
+        self.constraint_config = validation_config.get("constraints", {}).get(
+            "rules", {}
+        )
+
+    def validate_foreign_keys(
+        self, df_dict: dict[str, pd.DataFrame]
+    ) -> dict[str, pd.DataFrame]:
+        logger.info("Валидация внешних ключей...")
+
+        for table, fks in self.fk_config.items():
+            for fk_col, parent_table in fks.items():
+                if table not in df_dict or parent_table not in df_dict:
+                    logger.warning(
+                        f"Пропущена проверка внешнего ключа: '{table}.{fk_col}' → '{parent_table}'"
+                    )
+                    continue
+
+                child_df = df_dict[table]
+                parent_ids = set(df_dict[parent_table]["id"])
+                before = len(child_df)
+
+                child_df = child_df[child_df[fk_col].isin(parent_ids)]
+                after = len(child_df)
+
+                logger.info(
+                    f"{table}: удалено {before - after} строк с невалидными '{fk_col}'"
+                )
+                df_dict[table] = child_df.reset_index(drop=True)
+
+        return df_dict
+
+    def validate_constraints(
+        self, df_dict: dict[str, pd.DataFrame]
+    ) -> dict[str, pd.DataFrame]:
+        logger.info("Валидация пользовательских ограничений...")
+
+        for table, df in df_dict.items():
+            original_len = len(df)
+
+            for column, condition in self.constraint_config.items():
+                if column not in df.columns:
+                    continue
+                try:
+                    # Проверка строковых или .isin правил
+                    if "str.contains" in condition or ".isin(" in condition:
+                        df = df[eval(f"df.{condition}")]
+                    else:
+                        df = df.query(condition)
+                except Exception as e:
+                    logger.warning(
+                        f"Ошибка при применении ограничения '{condition}' к '{table}.{column}': {e}"
+                    )
+
+            logger.info(
+                f"{table}: удалено {original_len - len(df)} строк по пользовательским условиям"
+            )
+            df_dict[table] = df.reset_index(drop=True)
+
+        return df_dict
+
+    def run_all_validations(
+        self, df_dict: dict[str, pd.DataFrame]
+    ) -> dict[str, pd.DataFrame]:
+        df_dict = self.validate_foreign_keys(df_dict)
+        df_dict = self.validate_constraints(df_dict)
+        return df_dict
 
 
 class DataProfiler:
