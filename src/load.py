@@ -1,49 +1,64 @@
 import logging
-import sqlite3
-from main import load_config
+import psycopg2
+import pandas as pd
+from typing import Literal
+from sqlalchemy import create_engine
+from clickhouse_connect import get_client
 
-# Initialize logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-class DataLoader:
-    def __init__(self):
-        self.config = load_config()
+logger = logging.getLogger(__name__)
 
-    def load_to_sqlite(self, data, table_name):
-        """
-        Загрузка данных в базу данных SQLite.
 
-        :param data: Список словарей с данными для загрузки.
-        :param table_name: Имя таблицы, в которую будут загружены данные.
-        """
+class PostgresLoader:
+    def __init__(self, config: dict):
+        pg_conf = config["load_config"]["postgres"]
+        self.engine = self._create_engine(pg_conf)
+
+    def _create_engine(self, conf):
+        url = (
+            f"postgresql+psycopg2://{conf['user']}:{conf['password']}"
+            f"@{conf['host']}:{conf['port']}/{conf['database']}"
+        )
+        return create_engine(url)
+
+    def load_dataframes(
+        self,
+        data: dict[str, pd.DataFrame],
+        if_exists: Literal["fail", "replace", "append"] = "replace",
+    ):
+        for table_name, df in data.items():
+            if df.empty:
+                logger.info(
+                    f"Пропущена загрузка пустой таблицы '{table_name}' в PostgreSQL"
+                )
+                continue
+            try:
+                logger.info(f"Загрузка таблицы '{table_name}' в PostgreSQL...")
+                df.to_sql(table_name, self.engine, index=False, if_exists=if_exists)
+                logger.info(f"Таблица '{table_name}' успешно загружена в PostgreSQL.")
+            except Exception as e:
+                logger.error(f"Ошибка при загрузке '{table_name}' в PostgreSQL: {e}")
+
+
+class ClickHouseLoader:
+    def __init__(self, config: dict):
+        ch_conf = config["load_config"]["clickhouse"]
+        self.client = get_client(
+            host=ch_conf["host"],
+            port=ch_conf["port"],
+            username=ch_conf["user"],
+            password=ch_conf["password"],
+            secure=ch_conf.get("secure", False),
+        )
+
+    def load_dataframe(self, df: pd.DataFrame, table: str):
+        if df.empty:
+            logger.info(f"Пропущена загрузка пустой таблицы '{table}' в ClickHouse.")
+            return
+
         try:
-            conn = sqlite3.connect('etl_pipeline.db')
-            cursor = conn.cursor()
-
-            # Создание таблицы, если она не существует
-            columns = ', '.join([f"{key} TEXT" for key in data[0].keys()])
-            create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns})"
-            cursor.execute(create_table_query)
-
-            # Вставка данных в таблицу
-            placeholders = ', '.join(['?' for _ in data[0].keys()])
-            insert_query = f"INSERT INTO {table_name} VALUES ({placeholders})"
-            for record in data:
-                cursor.execute(insert_query, tuple(record.values()))
-
-            conn.commit()
-            conn.close()
-            logging.info(f"Данные успешно загружены в таблицу SQLite: {table_name}")
+            logger.info(f"Загрузка таблицы '{table}' в ClickHouse...")
+            self.client.insert_df(table, df)
+            logger.info(f"Таблица '{table}' успешно загружена в ClickHouse.")
         except Exception as e:
-            logging.error(f"Ошибка при загрузке данных в SQLite: {e}")
-
-if __name__ == "__main__":
-    loader = DataLoader()
-
-    # Пример использования
-    sample_data = [
-        {"id": "1", "attribute": "value1"},
-        {"id": "2", "attribute": "value2"}
-    ]
-
-    loader.load_to_sqlite(sample_data, "generic_table")
+            logger.error(f"Ошибка при загрузке '{table}' в ClickHouse: {e}")

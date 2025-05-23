@@ -24,7 +24,6 @@ sqlite_config:
       ORDER BY total_orders DESC
       LIMIT 5;
 
-
 sqlite_tables:
   - name: users
     num_rows: 2500
@@ -147,7 +146,19 @@ validation:
       order_status: "status.isin(['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'])"
       amount: "amount > 0"
 
-
+load_config:
+  clickhouse:
+    host: your-ch-host.com
+    port: 9440
+    user: default
+    password: your_password
+    secure: true
+  postgres:
+    host: localhost
+    port: 5432
+    user: your_user
+    password: your_password
+    database: your_database
 
 # Наборы слов для генерации названий товаров
 word_lists:
