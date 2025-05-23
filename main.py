@@ -50,7 +50,11 @@ try:
     transformer = transform.DataTransformer(config)
     cleaned_data = transformer.transform_sqlite(logs)
     validator = utils.DataValidator(config["validation"])
-    cleaned_data = validator.run_all_validations(cleaned_data)
+    validated_data = validator.run_all_validations(cleaned_data)
+    profiler = utils.DataProfiler(config.get("profiling", {}))
+    for table_name, df in validated_data.items():
+        profile_report = profiler.profile(df)
+        profiler.log_profile(profile_report, table_name)
     # loader = load.PostgresLoader(config)
     # loader.load_dataframes(cleaned_data)
 except Exception as e:

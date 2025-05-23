@@ -146,6 +146,17 @@ validation:
       order_status: "status.isin(['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'])"
       amount: "amount > 0"
 
+profiling:
+  enabled: true
+  reports_path: ./reports/profiling/
+  stats:
+    - count
+    - mean
+    - median
+    - std
+    - missing_values
+  detailed: false
+
 load_config:
   clickhouse:
     host: your-ch-host.com
