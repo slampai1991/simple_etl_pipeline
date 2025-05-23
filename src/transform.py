@@ -16,7 +16,9 @@ class DataTransformer:
     def __init__(self, config: dict) -> None:
         self.config = config
 
-    def transform_sqlite(self, data: dict[str, list[tuple]]) -> dict[str, pd.DataFrame]:
+    def transform_sqlite(
+        self, data: dict[str, tuple[list[str], list[tuple]]]
+    ) -> dict[str, pd.DataFrame]:
         """
         Обрабатывает данные SQLite согласно конфигурации:
         - Удаление null-значений
@@ -32,23 +34,12 @@ class DataTransformer:
         config = self.config.get("transformations", {})
         transformed = {}
 
-        for table_name, rows in data.items():
+        for table_name, (columns, rows) in data.items():
             if not rows:
                 continue
 
             logger.info(f"Преобразование таблицы: {table_name}")
-            df = pd.DataFrame(rows)
-
-            # Получение названий колонок
-            with sqlite3.connect(
-                os.path.join(
-                    self.config["data_sources"]["sqlite"],
-                    self.config["sqlite_config"]["db_name"],
-                )
-            ) as conn:
-                cursor = conn.execute(f"PRAGMA table_info({table_name});")
-                columns = [row[1] for row in cursor.fetchall()]
-                df.columns = columns
+            df = pd.DataFrame(rows, columns=columns)
 
             # Удаление null-ов
             clean_cfg = config.get("clean_data", {})

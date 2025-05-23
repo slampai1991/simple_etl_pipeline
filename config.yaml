@@ -132,12 +132,15 @@ validation:
       user_id: users
     user_actions:
       user_id: users
+  composite_keys:
+    user_actions:
+      - ["user_id", "timestamp"]
   
   
   constraints:
     rules:
       age: "age > 0 and age < 100"
-      email: "email.str.contains(r'^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$', na=False)"
+      email: "email.str.contains(r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$', na=False)"
       price: "price > 0"
       severity: "severity.isin(['INFO', 'WARNING', 'ERROR', 'CRITICAL'])"
       transaction_status: "status.isin(['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'])"

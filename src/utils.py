@@ -411,6 +411,7 @@ class DataValidator:
         self.constraint_config = validation_config.get("constraints", {}).get(
             "rules", {}
         )
+        self.composite_key_config = validation_config.get("composite_keys", {})
 
     def validate_foreign_keys(
         self, df_dict: dict[str, pd.DataFrame]
@@ -421,7 +422,7 @@ class DataValidator:
             for fk_col, parent_table in fks.items():
                 if table not in df_dict or parent_table not in df_dict:
                     logger.warning(
-                        f"Пропущена проверка внешнего ключа: '{table}.{fk_col}' → '{parent_table}'"
+                        f"Пропущена проверка внешнего ключа: '{table}.{fk_col}' -> '{parent_table}'"
                     )
                     continue
 
@@ -468,10 +469,26 @@ class DataValidator:
 
         return df_dict
 
+    def validate_composite_keys(
+        self, data: dict[str, pd.DataFrame]
+    ) -> dict[str, pd.DataFrame]:
+        comp_keys = self.composite_key_config.get("composite_keys", {})
+        for table, keys_list in comp_keys.items():
+            df = data.get(table)
+            if df is None:
+                continue
+            for keys in keys_list:
+                if df.duplicated(subset=keys).any():
+                    logging.warning(
+                        f"Нарушение составного ключа {keys} в таблице {table}"
+                    )
+        return data
+
     def run_all_validations(
         self, df_dict: dict[str, pd.DataFrame]
     ) -> dict[str, pd.DataFrame]:
         df_dict = self.validate_foreign_keys(df_dict)
+        df_dict = self.validate_composite_keys(df_dict)
         df_dict = self.validate_constraints(df_dict)
         return df_dict
 

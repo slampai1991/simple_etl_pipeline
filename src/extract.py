@@ -11,6 +11,7 @@ class DataExtractor:
     Класс содержащий методы извлечения данных.
     Пока реализованы только два метода: sqlite и csv экстракторы.
     """
+
     def __init__(self, config: dict):
         self.config = config
 
@@ -53,25 +54,8 @@ class DataExtractor:
         db_path: str | None = None,
         table_name: str | None = None,
         query: str | None = None,
-    ) -> dict[str, list[tuple]]:
-        """
-        Извлекает данные из SQLite БД.
-        Поддерживает извлечение:
-        - по произвольному SQL-запросу;
-        - одной таблицы по имени;
-        - всех таблиц в БД.
-
-        Args:
-            db_path (str, optional): Путь к SQLite БД. По умолчанию — из конфигурации.
-            table_name (str, optional): Имя таблицы для извлечения. Если None — извлекаются все.
-            query (str, optional): Пользовательский SQL-запрос. Если задан — используется вместо table_name.
-
-        Returns:
-            dict[str, list[tuple]]: Словарь с именами таблиц и извлечёнными данными.
-
-        Raises:
-            sqlite3.Error: В случае ошибки доступа к БД.
-        """
+        result_alias: str | None = None,
+    ) -> dict[str, tuple[list[str], list[tuple]]]:
         if not db_path:
             db_path = os.path.join(
                 self.config["data_sources"]["sqlite"],
@@ -86,15 +70,25 @@ class DataExtractor:
                 cursor = conn.cursor()
 
                 if query:
+                    if not result_alias:
+                        logger.warning(
+                            "!!! Вы не указали result_alias для результата SQL-запроса. !!!"
+                        )
+                        user_input = input(
+                            "Введите имя для сохранения результата: "
+                        ).strip()
+                        result_alias = user_input
                     logger.info(f"Извлечение по пользовательскому SQL-запросу: {query}")
                     cursor.execute(query)
-                    extracted_data["custom_query"] = cursor.fetchall()
+                    columns = [desc[0] for desc in cursor.description]
+                    extracted_data[result_alias] = (columns, cursor.fetchall())
                     return extracted_data
 
                 if table_name:
                     logger.info(f"Извлечение таблицы '{table_name}' из БД.")
                     cursor.execute(f"SELECT * FROM {table_name}")
-                    extracted_data[table_name] = cursor.fetchall()
+                    columns = [desc[0] for desc in cursor.description]
+                    extracted_data[table_name] = (columns, cursor.fetchall())
                     return extracted_data
 
                 # Извлечение всех таблиц
@@ -107,7 +101,8 @@ class DataExtractor:
                 for tbl in tables:
                     logger.info(f"Извлечение таблицы: {tbl}")
                     cursor.execute(f"SELECT * FROM {tbl}")
-                    extracted_data[tbl] = cursor.fetchall()
+                    columns = [desc[0] for desc in cursor.description]
+                    extracted_data[tbl] = (columns, cursor.fetchall())
 
                 return extracted_data
 

@@ -3,6 +3,7 @@ import os
 import logging
 import datetime
 import src.extract as extract
+import src.transform as transform
 import src.utils as utils
 
 try:
@@ -44,7 +45,11 @@ try:
     datagen = utils.DataGenerator(config)
     datagen.generate_sqlite()
     extractor = extract.DataExtractor(config)
-    print(extractor.extract_sqlite("SELECT * FROM users"))
+    logs = extractor.extract_sqlite(query="SELECT * FROM logs")
+    transformer = transform.DataTransformer(config)
+    cleaned_data = transformer.transform_sqlite(logs)
+    validator = utils.DataValidator(config["validation"])
+    cleaned_data = validator.run_all_validations(cleaned_data)
 except Exception as e:
     logging.error(f"Ошибка при выполнении скрипта: {e}")
     raise
