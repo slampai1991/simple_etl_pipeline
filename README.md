@@ -117,8 +117,6 @@ project/
 ├── src/
 │   ├── extract.py
 │   ├── transform.py
-│   ├── validate.py
-│   ├── profile.py
 │   ├── load.py
 │   └── utils.py
 ├── config.yaml
