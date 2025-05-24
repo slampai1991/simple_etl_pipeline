@@ -46,7 +46,7 @@ try:
     datagen = utils.DataGenerator(config)
     datagen.generate_sqlite()
     extractor = extract.DataExtractor(config)
-    logs = extractor.extract_sqlite(query="SELECT * FROM logs")
+    logs = extractor.extract_sqlite(query="SELECT * FROM users")
     transformer = transform.DataTransformer(config)
     cleaned_data = transformer.transform_sqlite(logs)
     validator = utils.DataValidator(config["validation"])
@@ -55,8 +55,9 @@ try:
     for table_name, df in validated_data.items():
         profile_report = profiler.profile(df)
         profiler.log_profile(profile_report, table_name)
-    # loader = load.PostgresLoader(config)
-    # loader.load_dataframes(cleaned_data)
+    loader = load.SQLiteLoader(config)
+    for table_name, df in validated_data.items():
+        loader.load_dataframe(df, table_name)
 except Exception as e:
     logging.error(f"Ошибка при выполнении скрипта: {e}")
     raise

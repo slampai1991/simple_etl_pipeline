@@ -1,9 +1,10 @@
 import logging
-import psycopg2
 import pandas as pd
 from typing import Literal
 from sqlalchemy import create_engine
 from clickhouse_connect import get_client
+import os
+import sqlite3
 
 
 logger = logging.getLogger(__name__)
@@ -62,3 +63,45 @@ class ClickHouseLoader:
             logger.info(f"Таблица '{table}' успешно загружена в ClickHouse.")
         except Exception as e:
             logger.error(f"Ошибка при загрузке '{table}' в ClickHouse: {e}")
+
+
+class SQLiteLoader:
+    def __init__(self, config: dict):
+        """
+        Инициализация загрузчика SQLite.
+
+        Args:
+            db_dir (str): Директория базы данных.
+            db_name (str): Имя файла базы данных.
+        """
+        self.config = config
+
+        if not os.path.exists(config["load_config"]["sqlite"]["db_path"]):
+            os.makedirs(config["load_config"]["sqlite"]["db_path"])
+            logger.info(
+                f"Создана директория для базы данных: {config['load_config']['sqlite']['db_path']}"
+            )
+        self.db_path = os.path.join(
+            config["load_config"]["sqlite"]["db_path"],
+            config["load_config"]["sqlite"]["db_name"],
+        )
+
+    def load_dataframe(self, df: pd.DataFrame, table: str) -> None:
+        """
+        Загружает DataFrame в указанную таблицу SQLite.
+
+        Args:
+            df (pd.DataFrame): Данные для загрузки.
+            table (str): Имя таблицы в SQLite.
+        """
+        if df.empty:
+            logger.info(f"Пропущена загрузка пустой таблицы '{table}' в SQLite.")
+            return
+
+        try:
+            logger.info(f"Начинается загрузка таблицы '{table}' в SQLite...")
+            with sqlite3.connect(self.db_path) as conn:
+                df.to_sql(table, conn, if_exists="replace", index=False)
+            logger.info(f"Таблица '{table}' успешно загружена в SQLite.")
+        except Exception as e:
+            logger.error(f"Ошибка при загрузке '{table}' в SQLite: {e}", exc_info=True)

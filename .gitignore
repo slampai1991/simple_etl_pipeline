@@ -40,3 +40,4 @@ logs
 *.db
 *.csv
 *.db-journal
+db

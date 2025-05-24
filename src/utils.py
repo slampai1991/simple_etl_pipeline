@@ -257,7 +257,7 @@ class DataGenerator:
         try:
             logger.info("Подключение к БД SQLite.")
             # Проверяем, существует ли директория для сохранения файла
-            destination_path = self.config["data_destinations"]["sqlite"]
+            destination_path = self.config["sqlite_config"]["db_path"]
 
             if not os.path.exists(destination_path):
                 os.makedirs(destination_path, exist_ok=True)
