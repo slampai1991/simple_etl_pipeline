@@ -1,11 +1,14 @@
+import ast
 import csv
+import json
 import sqlite3
 import random
-import faker
 import logging
 import os
-import pandas as pd
+import re
 from datetime import datetime, timedelta
+import faker
+import pandas as pd
 
 
 logger = logging.getLogger(__name__)
@@ -13,16 +16,15 @@ logger = logging.getLogger(__name__)
 
 class DataGenerator:
     """
-    Генератор синтетических данных разных типов (логи, транзакции и т.д.)
-    и разных форматов (CSV, SQLite DB и т.д.)
+    Генератор синтетических данных разных типов (логи, транзакции etc.)
+    и разных форматов (CSV, SQLite DB etc.)
     В зависимости от конфигурации, он может генерировать данные в разных форматах.
     Сохраняет данные в заданных форматах локально.
-    При необходимости можешь дописать нужные методы, или изменить логику существующих.
-    В любом случае, не забудь внести изменения и в конфиг файл.
+    При необходимости можно дописать нужные методы, или изменить логику существующих.
     """
 
     def __init__(self, config: dict):
-        self.config = config  # Конфигурация для генерации данных
+        self.cfg = config  # Конфигурация для генерации данных
         self.faker = faker.Faker()  # Генератор случайных данных
 
     def generate_sqlite(self, db_name: str | None = None) -> None:
@@ -34,7 +36,9 @@ class DataGenerator:
         """
 
         def _get_product_names(num_rows: int) -> set:
-            """Генерация уникальных названий товаров: случайные комбинации названий товаров, модели и цвета.
+            """
+            Генерация уникальных названий товаров:
+            случайные комбинации названий, модели и цвета.
 
             Args:
                 num_rows (int): Количество строк для генерации.
@@ -51,9 +55,9 @@ class DataGenerator:
             )  # Используем set для соблюдения уникальности product name
 
             # Получаем списки из конфигурации
-            products = self.config["word_lists"]["products"]
-            models = self.config["word_lists"]["models"]
-            colors = self.config["word_lists"]["colors"]
+            products = self.cfg["word_lists"]["products"]
+            models = self.cfg["word_lists"]["models"]
+            colors = self.cfg["word_lists"]["colors"]
 
             while len(product_names) < num_rows:
                 product_name = f"{random.choice(colors)} {random.choice(products)} {random.choice(models)}"
@@ -138,7 +142,7 @@ class DataGenerator:
                     for _ in range(num_rows):
                         name = _maybe_dirty(product_names.pop(), "TEXT")
                         category = _maybe_dirty(
-                            random.choice(self.config["word_lists"]["categories"]),
+                            random.choice(self.cfg["word_lists"]["categories"]),
                             "TEXT",
                         )
                         price = _maybe_dirty(round(random.uniform(1, 2500), 2), "REAL")
@@ -152,7 +156,7 @@ class DataGenerator:
                         )
                         message = _maybe_dirty(
                             random.choice(
-                                self.config["word_lists"]["log_messages"].get(
+                                self.cfg["word_lists"]["log_messages"].get(
                                     severity, ["default error"]
                                 )
                             ),
@@ -184,9 +188,7 @@ class DataGenerator:
                             round(random.uniform(10.0, 1000.0), 2), "REAL"
                         )
                         description = _maybe_dirty(
-                            random.choice(
-                                self.config["word_lists"]["transaction_desc"]
-                            ),
+                            random.choice(self.cfg["word_lists"]["transaction_desc"]),
                             "TEXT",
                         )
                         status = _maybe_dirty(
@@ -212,7 +214,7 @@ class DataGenerator:
                                 unique.add((uid, ts))
                                 break
                         action = _maybe_dirty(
-                            random.choice(self.config["word_lists"]["actions"]), "TEXT"
+                            random.choice(self.cfg["word_lists"]["actions"]), "TEXT"
                         )
                         data.append((uid, action, ts))
 
@@ -257,19 +259,19 @@ class DataGenerator:
         try:
             logger.info("Подключение к БД SQLite.")
             # Проверяем, существует ли директория для сохранения файла
-            destination_path = self.config["sqlite_config"]["db_path"]
+            path = self.cfg["sqlite_config"]["db_path"]
 
-            if not os.path.exists(destination_path):
-                os.makedirs(destination_path, exist_ok=True)
-                logging.info(f"Создана директория {destination_path}")
+            if not os.path.exists(path):
+                os.makedirs(path, exist_ok=True)
+                logging.info(f"Создана директория {path}")
 
             if db_name is None:
-                db_name = self.config["sqlite_config"]["db_name"]
+                db_name = self.cfg["sqlite_config"]["db_name"]
                 logger.info(
-                    f"Не передано название БД - db_name.\nБудет использовано значение по умолчанию - {self.config['sqlite_config']['db_name']}"
+                    f"Не передано название БД - db_name.\nБудет использовано значение по умолчанию - {self.cfg['sqlite_config']['db_name']}"
                 )
 
-            db_path = os.path.join(destination_path, str(db_name))
+            db_path = os.path.join(path, str(db_name))
 
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
@@ -277,7 +279,7 @@ class DataGenerator:
 
             logger.info("Создание таблиц и заполнение их данными.")
             # Создание таблиц на основе конфигурации
-            for table in self.config["sqlite_tables"]:
+            for table in self.cfg["sqlite_config"]["sqlite_tables"]:
                 table_name = table["name"]
                 columns = ", ".join(
                     [
@@ -291,7 +293,7 @@ class DataGenerator:
                 cursor.execute(create_table_query)
                 logger.info(f"Таблица '{table_name}' успешно создана.")
 
-            for table in self.config["sqlite_tables"]:
+            for table in self.cfg["sqlite_config"]["sqlite_tables"]:
                 table_name = table["name"]
                 num_rows = table["num_rows"]
                 logger.info(f"Генерация {num_rows} строк для таблицы '{table_name}'.")
@@ -351,14 +353,14 @@ class DataGenerator:
 
         try:
             logger.info("Генерация данных и запись в CSV файл.")
-            csv_path = os.path.join(self.config["data_destinations"]["csv"], csv_name)
+            csv_path = os.path.join(self.cfg["data_destinations"]["csv"], csv_name)
 
             with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.writer(csvfile)
-                headers = self.config["csv_config"]["headers"]
+                headers = self.cfg["csv_config"]["headers"]
                 writer.writerow(headers)
 
-                for idx in range(1, self.config["csv_config"]["num_rows"] + 1):
+                for idx in range(1, self.cfg["csv_config"]["num_rows"] + 1):
                     raw_row = {
                         "id": idx,
                         "name": self.faker.name(),
@@ -396,7 +398,7 @@ class DataGenerator:
             logger.error(f"Ошибка при генерации CSV: {e}")
             raise
 
-    # По аналогии можно добавить другие методы: JSON, MongoDB, etc.
+    # По аналогии можно добавить другие методы: JSON, MongoDB etc.
 
 
 class DataValidator:
@@ -407,18 +409,56 @@ class DataValidator:
     """
 
     def __init__(self, validation_config: dict):
-        self.fk_config = validation_config.get("foreign_keys", {})
-        self.constraint_config = validation_config.get("constraints", {}).get(
-            "rules", {}
-        )
+        self.fk_cfg = validation_config.get("foreign_keys", {})
+        self.constr_cfg = validation_config.get("constraints", {}).get("rules", {})
         self.composite_key_config = validation_config.get("composite_keys", {})
+
+    def _filter_df(self, df, condition: str):
+        """
+        Отфильтровать df по условию в строке condition, поддерживаются:
+          - str.contains:   "col_name.str.contains('pattern')"
+          - isin:           "col_name.isin([v1, v2, ...])"
+          - любые другие сравнения и логические операторы через df.query().
+
+        Пример:
+          df2 = filter_df(df, "age > 30 and status == 'active'")
+          df3 = filter_df(df, "name.str.contains('Ivan')")
+          df4 = filter_df(df, "country.isin(['RU','UA','BY'])")
+        """
+        logger.debug(f"Применяется фильтр {condition}")
+        # 1) str.contains
+        m = re.fullmatch(r"(\w+)\.str\.contains\((.+)\)", condition)
+        if m:
+            col, pattern = m.group(1), m.group(2)
+            pattern = ast.literal_eval(pattern)
+            return df[df[col].str.contains(pattern, na=False)]
+
+        # 2) str.match
+        m = re.fullmatch(r"(\w+)\.str\.match\((.+)\)", condition)
+        if m:
+            col, pattern = m.group(1), m.group(2)
+            pattern = ast.literal_eval(pattern)
+            return df[df[col].str.match(pattern, na=False)]
+
+        # 3) str.len
+        m = re.fullmatch(r"(\w+)\.str\.len\(\)\s*([><=!]+)\s*(\d+)", condition)
+        if m:
+            col, op, num = m.group(1), m.group(2), int(m.group(3))
+            return df[eval(f"df['{col}'].str.len() {op} {num}")]
+
+        # 4) isin
+        m = re.fullmatch(r"(\w+)\.isin\((.+)\)", condition)
+        if m:
+            col, list_literal = m.group(1), m.group(2)
+            values = ast.literal_eval(list_literal)
+            return df[df[col].isin(values)]
 
     def validate_foreign_keys(
         self, df_dict: dict[str, pd.DataFrame]
     ) -> dict[str, pd.DataFrame]:
         logger.info("Валидация внешних ключей...")
 
-        for table, fks in self.fk_config.items():
+        for table, fks in self.fk_cfg.items():
             for fk_col, parent_table in fks.items():
                 if table not in df_dict or parent_table not in df_dict:
                     logger.warning(
@@ -448,19 +488,22 @@ class DataValidator:
         for table, df in df_dict.items():
             original_len = len(df)
 
-            for column, condition in self.constraint_config.items():
-                if column not in df.columns:
-                    continue
+            # Пробуем достать правила, если не нашли — логируем и пропускаем
+            rules = self.constr_cfg.get(table)
+            if not rules:
+                logger.info(f"Нет ограничений для таблицы '{table}'")
+                continue
+
+            for condition in rules:
                 try:
-                    # Проверка строковых или .isin правил
-                    if "str.contains" in condition or ".isin(" in condition:
-                        df = df[eval(f"df.{condition}")]
-                    else:
-                        df = df.query(condition)
+                    df = self._filter_df(df, condition)
                 except Exception as e:
                     logger.warning(
-                        f"Ошибка при применении ограничения '{condition}' к '{table}.{column}': {e}"
+                        f"Ошибка при применении ограничения '{condition}' к '{table}': {e}"
                     )
+
+            if df is None:
+                continue
 
             logger.info(
                 f"{table}: удалено {original_len - len(df)} строк по пользовательским условиям"
@@ -505,7 +548,24 @@ class DataProfiler:
     """
 
     def __init__(self, config: dict | None = None) -> None:
-        self.config = config or {}
+        self.cfg = config or {}
+
+    def _clean_control_chars(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Вспомогательная функция для очистки контрольных символов в DataFrame
+
+        Args:
+            df (pd.DataFrame): Исходный DataFraame
+
+        Returns:
+            pd.DataFrame: Очищенный DataFrame
+        """
+
+        def clean_value(x):
+            if isinstance(x, str):
+                return re.sub(r"[\x00-\x1F]+", "", x)
+            return x
+
+        return df.apply(lambda col: col.map(clean_value))
 
     def profile(self, df: pd.DataFrame) -> dict:
         """
@@ -517,8 +577,10 @@ class DataProfiler:
         Returns:
             dict: Результаты профилирования.
         """
+
         logger.info("Начинается профилирование данных.")
 
+        df = self._clean_control_chars(df)
         profile_report = {}
 
         # Типы данных

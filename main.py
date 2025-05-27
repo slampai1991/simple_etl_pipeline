@@ -2,10 +2,8 @@ import yaml
 import os
 import logging
 import datetime
-import src.extract as extract
-import src.transform as transform
-import src.load as load
-import src.utils as utils
+import pprint as pp
+from src import extract, transform, load, utils
 
 try:
     with open("config.yaml", "r", encoding="utf8") as f:
@@ -43,21 +41,20 @@ except PermissionError:
 
 
 try:
-    datagen = utils.DataGenerator(config)
-    datagen.generate_sqlite()
+    # datagen = utils.DataGenerator(config)
     extractor = extract.DataExtractor(config)
-    logs = extractor.extract_sqlite(query="SELECT * FROM users")
     transformer = transform.DataTransformer(config)
-    cleaned_data = transformer.transform_sqlite(logs)
-    validator = utils.DataValidator(config["validation"])
-    validated_data = validator.run_all_validations(cleaned_data)
-    profiler = utils.DataProfiler(config.get("profiling", {}))
-    for table_name, df in validated_data.items():
-        profile_report = profiler.profile(df)
-        profiler.log_profile(profile_report, table_name)
-    loader = load.SQLiteLoader(config)
-    for table_name, df in validated_data.items():
-        loader.load_dataframe(df, table_name)
+    validator = utils.DataValidator(config)
+    profiler = utils.DataProfiler(config)
+
+    # datagen.generate_sqlite()
+    raw_data = extractor.extract_sqlite()
+    transformed_data = transformer.transform(raw_data)
+    validated_data = validator.run_all_validations(transformed_data)
+    pp.pprint(transformed_data)
+    print('~~~~~~~~~~~~~~~~~~~~~~~~~')
+    print('~~~~~~~~~~~~~~~~~~~~~~~~~')
+
 except Exception as e:
     logging.error(f"Ошибка при выполнении скрипта: {e}")
     raise

@@ -1,6 +1,5 @@
 import logging
-import os
-import sqlite3
+from typing import Any
 import pandas as pd
 
 
@@ -16,8 +15,8 @@ class DataTransformer:
     def __init__(self, config: dict) -> None:
         self.config = config
 
-    def transform_sqlite(
-        self, data: dict[str, tuple[list[str], list[tuple]]]
+    def transform(
+        self, data: dict[str, dict[str, list[str] | list[tuple[Any, ...]]]]
     ) -> dict[str, pd.DataFrame]:
         """
         Обрабатывает данные SQLite согласно конфигурации:
@@ -31,36 +30,27 @@ class DataTransformer:
             dict: Трансформированные данные в виде DataFrame по таблицам
         """
 
-        config = self.config.get("transformations", {})
+        cfg = self.config.get("transformations", {})
         transformed = {}
+        dropna = cfg.get("dropna", False)
+        drop_duplicates = cfg.get("drop_duplicates", False)
 
-        for table_name, (columns, rows) in data.items():
-            if not rows:
-                continue
+        for name, payload in data.items():
+            cols = payload.get("columns", [])
+            rows = payload.get("rows", [])
 
-            logger.info(f"Преобразование таблицы: {table_name}")
-            df = pd.DataFrame(rows, columns=columns)
+            # Создаём DataFrame
+            df = pd.DataFrame(rows, columns=cols)
 
-            # Удаление null-ов
-            clean_cfg = config.get("clean_data", {})
-            if clean_cfg.get("type") == "drop_nulls":
-                cols = clean_cfg.get("columns", "*")
-                (
-                    df.dropna(inplace=True)
-                    if cols == "*"
-                    else df.dropna(subset=cols, inplace=True)
-                )
+            # Удаляем null-значения
+            if dropna:
+                df = df.dropna()
 
-            # Удаление дубликатов
-            dup_cfg = config.get("remove_duplicates", {})
-            if dup_cfg.get("type") == "drop_duplicates":
-                cols = dup_cfg.get("columns", "*")
-                (
-                    df.drop_duplicates(inplace=True)
-                    if cols == "*"
-                    else df.drop_duplicates(subset=cols, inplace=True)
-                )
+            # Удаляем дубликаты
+            if drop_duplicates:
+                df = df.drop_duplicates()
 
-            transformed[table_name] = df.reset_index(drop=True)
+            # Сохраняем результат
+            transformed[name] = df
 
         return transformed
