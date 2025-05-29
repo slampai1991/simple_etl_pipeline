@@ -246,7 +246,7 @@ class DataGenerator:
                             ),
                             "TEXT",
                         )
-                        amount = _maybe_dirty(round(random.uniform(1, 2500), 2), "REAL")
+                        amount = _maybe_dirty(random.randint(1, 2500), "REAL")
                         data.append((None, uid, pid, date, status, amount))
 
                 case _:
@@ -414,48 +414,69 @@ class DataValidator:
         self.composite_key_config = validation_config.get("composite_keys", {})
 
     def _filter_df(self, df, condition: str):
-        """
-        Отфильтровать df по условию в строке condition, поддерживаются:
-          - str.contains:   "col_name.str.contains('pattern')"
-          - isin:           "col_name.isin([v1, v2, ...])"
-          - любые другие сравнения и логические операторы через df.query().
+        logger.debug(f"Применяется фильтр: {condition}")
 
-        Пример:
-          df2 = filter_df(df, "age > 30 and status == 'active'")
-          df3 = filter_df(df, "name.str.contains('Ivan')")
-          df4 = filter_df(df, "country.isin(['RU','UA','BY'])")
-        """
-        logger.debug(f"Применяется фильтр {condition}")
-        # 1) str.contains
-        m = re.fullmatch(r"(\w+)\.str\.contains\((.+)\)", condition)
+        # 1) Попытаться напрямую через eval на df.<condition>
+        try:
+            mask = eval(f"df.{condition}")
+            return df[mask]
+        except Exception as e:
+            logger.debug(f"eval(df.{condition}) не сработал: {e}")
+
+        # 2) Если это str.contains или str.match и мы хотим вытащить na=False / pattern
+        m = re.fullmatch(
+            r"(\w+)\.str\.contains\((r?['\"].+['\"])(?:,\s*na\s*=\s*(True|False))?\)",
+            condition,
+        )
         if m:
-            col, pattern = m.group(1), m.group(2)
-            pattern = ast.literal_eval(pattern)
-            return df[df[col].str.contains(pattern, na=False)]
+            col, pattern, na_flag = m.groups()
+            na = (na_flag == "True") if na_flag is not None else False
+            pat = ast.literal_eval(pattern)
+            return df[df[col].str.contains(pat, na=na)]
 
-        # 2) str.match
-        m = re.fullmatch(r"(\w+)\.str\.match\((.+)\)", condition)
+        m = re.fullmatch(
+            r"(\w+)\.str\.match\((r?['\"].+['\"])(?:,\s*na\s*=\s*(True|False))?\)",
+            condition,
+        )
         if m:
-            col, pattern = m.group(1), m.group(2)
-            pattern = ast.literal_eval(pattern)
-            return df[df[col].str.match(pattern, na=False)]
+            col, pattern, na_flag = m.groups()
+            na = (na_flag == "True") if na_flag is not None else False
+            pat = ast.literal_eval(pattern)
+            return df[df[col].str.match(pat, na=na)]
 
-        # 3) str.len
+        m = re.fullmatch(r"(\w+)\.isin\((\[.+\])\)", condition)
+        if m:
+            col, list_literal = m.groups()
+            values = ast.literal_eval(list_literal)
+            return df[df[col].isin(values)]
+
         m = re.fullmatch(r"(\w+)\.str\.len\(\)\s*([><=!]+)\s*(\d+)", condition)
         if m:
             col, op, num = m.group(1), m.group(2), int(m.group(3))
             return df[eval(f"df['{col}'].str.len() {op} {num}")]
 
-        # 4) isin
-        m = re.fullmatch(r"(\w+)\.isin\((.+)\)", condition)
-        if m:
-            col, list_literal = m.group(1), m.group(2)
-            values = ast.literal_eval(list_literal)
-            return df[df[col].isin(values)]
+        # 3) Наконец fallback для любых остальных выражений через query
+        try:
+            return df.query(condition, engine="python")
+        except Exception as e:
+            logger.warning(f"Не удалось разобрать условие '{condition}': {e}")
+            return df
 
     def validate_foreign_keys(
         self, df_dict: dict[str, pd.DataFrame]
     ) -> dict[str, pd.DataFrame]:
+        """
+        Проверяет ссылочную целостность между таблицами в соответствии с конфигурацией внешних ключей.
+
+        Проходит по всем таблицам и их внешним ключам, проверяя что значения внешних ключей
+        присутствуют в родительских таблицах. Строки с невалидными внешними ключами удаляются.
+
+        Args:
+            df_dict (dict[str, pd.DataFrame]): Словарь с DataFrame-ами, где ключи - имена таблиц
+
+        Returns:
+            dict[str, pd.DataFrame]: Словарь с очищенными DataFrame-ами после валидации внешних ключей
+        """
         logger.info("Валидация внешних ключей...")
 
         for table, fks in self.fk_cfg.items():
@@ -480,52 +501,39 @@ class DataValidator:
 
         return df_dict
 
-    def validate_constraints(
-        self, df_dict: dict[str, pd.DataFrame]
-    ) -> dict[str, pd.DataFrame]:
-        logger.info("Валидация пользовательских ограничений...")
-
+    def validate_constraints(self, df_dict):
         for table, df in df_dict.items():
-            original_len = len(df)
-
-            # Пробуем достать правила, если не нашли — логируем и пропускаем
-            rules = self.constr_cfg.get(table)
-            if not rules:
-                logger.info(f"Нет ограничений для таблицы '{table}'")
-                continue
-
-            for condition in rules:
-                try:
-                    df = self._filter_df(df, condition)
-                except Exception as e:
-                    logger.warning(
-                        f"Ошибка при применении ограничения '{condition}' к '{table}': {e}"
-                    )
-
-            if df is None:
-                continue
-
-            logger.info(
-                f"{table}: удалено {original_len - len(df)} строк по пользовательским условиям"
-            )
+            rules = self.constr_cfg.get(table, [])
+            for cond in rules:
+                before = len(df)
+                df = self._filter_df(df, cond)
+                logger.info(f"{table}: удалено {before - len(df)} строк по '{cond}'")
             df_dict[table] = df.reset_index(drop=True)
-
         return df_dict
 
     def validate_composite_keys(
-        self, data: dict[str, pd.DataFrame]
+        self, df_dict: dict[str, pd.DataFrame]
     ) -> dict[str, pd.DataFrame]:
-        comp_keys = self.composite_key_config.get("composite_keys", {})
-        for table, keys_list in comp_keys.items():
-            df = data.get(table)
+        """
+        Проверяет составные ключи в таблицах на уникальность.
+
+        Проходит по всем таблицам и проверяет, что комбинации значений в указанных столбцах уникальны.
+        Если находятся дубликаты по составному ключу, выводится предупреждение в лог.
+
+        Args:
+            data (dict[str, pd.DataFrame]): Словарь с DataFrame-ами, где ключи - имена таблиц
+
+        Returns:
+            dict[str, pd.DataFrame]: Исходный словарь с DataFrame-ами после проверки составных ключей
+        """
+        for table, keys_list in self.composite_key_config.items():
+            df = df_dict.get(table)
             if df is None:
                 continue
             for keys in keys_list:
                 if df.duplicated(subset=keys).any():
-                    logging.warning(
-                        f"Нарушение составного ключа {keys} в таблице {table}"
-                    )
-        return data
+                    logger.warning(f"Дубли {keys} в {table}")
+        return df_dict
 
     def run_all_validations(
         self, df_dict: dict[str, pd.DataFrame]
@@ -547,8 +555,8 @@ class DataProfiler:
     - корреляция
     """
 
-    def __init__(self, config: dict | None = None) -> None:
-        self.cfg = config or {}
+    def __init__(self, profiling_config: dict | None = None) -> None:
+        self.cfg = profiling_config or {}
 
     def _clean_control_chars(self, df: pd.DataFrame) -> pd.DataFrame:
         """Вспомогательная функция для очистки контрольных символов в DataFrame

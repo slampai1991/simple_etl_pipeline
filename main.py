@@ -41,20 +41,21 @@ except PermissionError:
 
 
 try:
-    # datagen = utils.DataGenerator(config)
-    extractor = extract.DataExtractor(config)
-    transformer = transform.DataTransformer(config)
-    validator = utils.DataValidator(config)
-    profiler = utils.DataProfiler(config)
-
+    # datagen = utils.DataGenerator(config=config)
     # datagen.generate_sqlite()
-    raw_data = extractor.extract_sqlite()
-    transformed_data = transformer.transform(raw_data)
-    validated_data = validator.run_all_validations(transformed_data)
-    pp.pprint(transformed_data)
-    print('~~~~~~~~~~~~~~~~~~~~~~~~~')
-    print('~~~~~~~~~~~~~~~~~~~~~~~~~')
 
+    # extractor = extract.DataExtractor(config=config)
+    # transformer = transform.DataTransformer(config=config)
+    # validator = utils.DataValidator(validation_config=config["validation_config"])
+    # profiler = utils.DataProfiler(profiling_config=config["profiling_config"])
+    # loader = load.SQLiteLoader(load_config=config["load_config"]["sqlite"])
+
+    # raw_data = extractor.extract_sqlite(table_name='user_actions')
+    # transfromed_data = transformer.transform(raw_data)
+    # pp.pprint(transfromed_data)
+    # validated_data = validator.run_all_validations(transfromed_data)
+    # pp.pprint(validated_data)
+    pass
 except Exception as e:
     logging.error(f"Ошибка при выполнении скрипта: {e}")
     raise

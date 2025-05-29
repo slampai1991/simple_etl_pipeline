@@ -48,7 +48,6 @@ class DataTransformer:
                 logger.info(f"Удаление null-значений в таблице '{name}'")
                 df = df.dropna()
                 logger.info(f"Удалено {len(rows) - len(df)} null-значений в таблице {name}")
-
             # Удаляем дубликаты
             if drop_duplicates:
                 logger.info(f"Удаляем дубликаты в таблице {name}")

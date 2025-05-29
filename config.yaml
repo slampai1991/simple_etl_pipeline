@@ -26,7 +26,7 @@ sqlite_config:
       LIMIT 5;
   sqlite_tables:
     - name: users
-      num_rows: 10
+      num_rows: 50
       columns:
         - id: INTEGER PRIMARY KEY AUTOINCREMENT
         - name: TEXT
@@ -36,21 +36,21 @@ sqlite_config:
         - country: TEXT
         - reg_date: TEXT
     - name: products
-      num_rows: 10
+      num_rows: 50
       columns:
         - id: INTEGER PRIMARY KEY AUTOINCREMENT
         - name: TEXT
         - category: TEXT
         - price: REAL
     - name: logs
-      num_rows: 10
+      num_rows: 50
       columns:
         - id: INTEGER PRIMARY KEY AUTOINCREMENT
         - severity: TEXT
         - error_message: TEXT
         - timestamp: TEXT
     - name: transactions
-      num_rows: 10
+      num_rows: 50
       columns:
         - user_id: INTEGER
         - amount: REAL
@@ -61,7 +61,7 @@ sqlite_config:
         - PRIMARY KEY (user_id, date)
         - FOREIGN KEY (user_id) REFERENCES users(id)
     - name: user_actions
-      num_rows: 10
+      num_rows: 50
       columns:
         - user_id: INTEGER
         - action: TEXT
@@ -70,7 +70,7 @@ sqlite_config:
         - PRIMARY KEY (user_id, timestamp)
         - FOREIGN KEY (user_id) REFERENCES users(id)
     - name: orders
-      num_rows: 10
+      num_rows: 50
       columns:
         - id: INTEGER PRIMARY KEY AUTOINCREMENT
         - user_id: INTEGER
@@ -108,6 +108,48 @@ transformation_config:
   drop_duplicates: true
 
 # Конфиг дата валидатора
+
+# validation_config:
+#   foreign_keys:
+#     orders:
+#       user_id: users
+#       product_id: products
+#     transactions:
+#       user_id: users
+#     user_actions:
+#       user_id: users
+
+#   composite_keys:
+#     user_actions:
+#       - ["user_id", "timestamp"]
+
+#   constraints:
+#     rules:
+#       users:
+#         - "age > 0 and age < 100"
+#         - 'phone.str.match(r"^(?:+?\d\[\d.-$$x ]+\d)\$", na=False)'
+#         - 'email.str.contains(r"^\[A-Za-z0-9\_.+-]+@\[A-Za-z0-9-]+.\[A-Za-z0-9-.]+\$", na=False)'
+#         - 'name.str.contains(r"\[A-Za-z ]+", na=False)'
+#         - 'reg_date.str.match(r"^\d{4}-\d{2}-\d{2}\$", na=False)'
+#       products:
+#         - "price > 0"
+#         - "name.str.len() > 0"
+#         - "category.str.len() > 0"
+#       logs:
+#         - "severity.isin(['INFO', 'WARNING', 'ERROR', 'CRITICAL'])"
+#         - 'timestamp.str.match(r"^\d{4}-\d{2}-\d{2}\$", na=False)'
+#       transactions:
+#         - "amount > 0"
+#         - "status.isin(['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'])"
+#         - 'date.str.match(r"^\d{4}-\d{2}-\d{2}\$", na=False)'
+#       orders:
+#         - "amount > 0"
+#         - "status.isin(['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'])"
+#         - 'purchase\_date.str.match(r"^\d{4}-\d{2}-\d{2}\$", na=False)'
+#       user_actions:
+#         - "action.isin(['LOGIN', 'LOGOUT', 'PURCHASE', 'ADD_TO_CART', 'REMOVE_FROM_CART', 'SEARCH', 'VIEW_PRODUCT', 'CHECKOUT', 'UPDATE_PROFILE', 'SUBSCRIBE'])"
+#         - 'timestamp.str.match(r"^\d{4}-\d{2}-\d{2}\$", na=False)'
+
 validation_config:
   foreign_keys:
     orders:
@@ -126,29 +168,79 @@ validation_config:
     rules:
       users:
         - "age > 0 and age < 100"
-        - "phone.str.match('^(?:\\+?\\d[\\d\\.\\-\\(\\)x ]+\\d)$', na=False)"
-        - "email.str.contains('^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+$', na=False)"
-        - "name.str.contains('[A-Z a-z]', na=False)"
-        - "reg_date.str.match('^\\d{4}-\\d{2}-\\d{2}$', na=False)"
-      products:
-        - "price > 0"
-        - "name.str.len() > 0"
-        - "category.str.len() > 0"
-      logs:
-        - "severity.isin(['INFO', 'WARNING', 'ERROR', 'CRITICAL'])"
-        - "timestamp.str.match('^\\d{4}-\\d{2}-\\d{2}$', na=False)"
-      transactions:
-        - "amount > 0"
-        - "status.isin(['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'])"
-        - "date.str.match('^\\d{4}-\\d{2}-\\d{2}$', na=False)"
-      orders:
-        - "amount > 0"
-        - "status.isin(['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'])"
-        - "purchase_date.str.match('^\\d{4}-\\d{2}-\\d{2}$', na=False)"
-      user_actions:
-        - "action.isin(['LOGIN', 'LOGOUT', 'PURCHASE', 'ADD_TO_CART', 'REMOVE_FROM_CART', 'SEARCH', 'VIEW_PRODUCT', 'CHECKOUT', 'UPDATE_PROFILE', 'SUBSCRIBE'])"
-        - "timestamp.str.match('^\\d{4}-\\d{2}-\\d{2}$', na=False)"
+        - |
+          phone.str.match(r'^(?=(?:.*\d){7,})\+?\d[\d.\-\(\)x ]+\d$', na=False)
+        - |
+          email.str.contains(r'^[A-Za-z0-9_.+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9-.]+$', na=False)
+        - |
+          name.str.contains(r'[A-Za-z ]+', na=False)
+        - |
+          reg_date.str.match(r'^\d{4}-\d{2}-\d{2}$', na=False)
+        - |
+          country.str.match(r'^[A-Za-z ]+$', na=False)
 
+      products:
+        - |
+          price.astype(str).str.match(r'^\d+(\.\d+)?$', na=False)
+        - |
+          (price > 0) & (price < 10000)
+        - |
+          name.str.match(r'.*[A-Za-z].*', na=False)
+        - |
+          category.str.match(r'.*[A-Za-z].*', na=False)
+
+      logs:
+        - |
+          severity.isin(['INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+        - |
+          error_message.str.match(r'.*[A-Za-z].*', na=False)
+        - |
+          timestamp.str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
+
+      transactions:
+        - "user_id.notnull() and user_id.astype(str).str.match(r'^[1-9]\\d*$', na=False)"
+        - |
+          amount.astype(str).str.match(r'^\d+(\.\d+)?$', na=False)
+        - "(amount > 0) & (amount < 100000)"
+        - |
+          date.str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
+        - |
+          description.str.match(r'.*[A-Za-z].*', na=False)
+        - |
+          status.isin(['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'])
+
+      orders:
+        - "user_id.notnull() and user_id.astype(str).str.match(r'^[1-9]\\d*$', na=False)"
+        - "product_id.notnull() and product_id.astype(str).str.match(r'^[1-9]\\d*$', na=False)"
+        - |
+          purchase_date.str.match(
+            r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$',
+            na=False
+          )
+        - |
+          status.isin([
+            'PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED',
+            'COMPLETED', 'CANCELLED'
+          ])
+        - |
+          amount.astype(str).str.match(r'^\d+(\.\d+)?$', na=False)
+        - "(amount > 0) & (amount < 100000)"
+
+      user_actions:
+        - |
+          action.isin([
+            'LOGIN', 'LOGOUT', 'PURCHASE', 'ADD_TO_CART', 'REMOVE_FROM_CART',
+            'SEARCH', 'VIEW_PRODUCT', 'CHECKOUT', 'UPDATE_PROFILE', 'SUBSCRIBE'
+          ])
+        - "user_id.notnull() and user_id.astype(str).str.match(r'^[1-9]\\d*$', na=False)"
+        - |
+          timestamp.str.match(
+            r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$',
+            na=False
+          )
+
+
+# Конфиг профилирования
 profiling_config:
   enabled: true
   reports_path: ./reports/profiling/
@@ -160,11 +252,11 @@ profiling_config:
     - missing_values
   detailed: false
 
+# Конфиг загрузчика
 load_config:
   sqlite:
     db_name: "result_sqlite_database.db"
     db_path: "db/"
-    table_name: "employees"
     if_exists: "replace"
 
   clickhouse:

@@ -66,27 +66,13 @@ class ClickHouseLoader:
 
 
 class SQLiteLoader:
-    def __init__(self, config: dict):
-        """
-        Инициализация загрузчика SQLite.
+    """
+    Класс для загрузки обработанных данных в целевое SQLite хранилище.
+    """
+    def __init__(self, load_config: dict):
+        self.cfg = load_config
 
-        Args:
-            db_dir (str): Директория базы данных.
-            db_name (str): Имя файла базы данных.
-        """
-        self.config = config
-
-        if not os.path.exists(config["load_config"]["sqlite"]["db_path"]):
-            os.makedirs(config["load_config"]["sqlite"]["db_path"])
-            logger.info(
-                f"Создана директория для базы данных: {config['load_config']['sqlite']['db_path']}"
-            )
-        self.db_path = os.path.join(
-            config["load_config"]["sqlite"]["db_path"],
-            config["load_config"]["sqlite"]["db_name"],
-        )
-
-    def load_dataframe(self, df: pd.DataFrame, table: str) -> None:
+    def load_dataframe(self, table: str, df: pd.DataFrame) -> None:
         """
         Загружает DataFrame в указанную таблицу SQLite.
 
@@ -94,6 +80,17 @@ class SQLiteLoader:
             df (pd.DataFrame): Данные для загрузки.
             table (str): Имя таблицы в SQLite.
         """
+        
+        if not os.path.exists(self.cfg["db_path"]):
+            os.makedirs(self.cfg["db_path"])
+            logger.info(
+                f"Создана директория для базы данных: {self.cfg['db_path']}"
+            )
+        self.db_path = os.path.join(
+            self.cfg["db_path"],
+            self.cfg["db_name"],
+        )
+        
         if df.empty:
             logger.info(f"Пропущена загрузка пустой таблицы '{table}' в SQLite.")
             return
@@ -101,7 +98,7 @@ class SQLiteLoader:
         try:
             logger.info(f"Начинается загрузка таблицы '{table}' в SQLite...")
             with sqlite3.connect(self.db_path) as conn:
-                df.to_sql(table, conn, if_exists="replace", index=False)
+                df.to_sql(table, conn, if_exists=self.cfg["if_exists"], index=False)
             logger.info(f"Таблица '{table}' успешно загружена в SQLite.")
         except Exception as e:
             logger.error(f"Ошибка при загрузке '{table}' в SQLite: {e}", exc_info=True)

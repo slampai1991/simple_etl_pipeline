@@ -5,7 +5,7 @@ import csv
 from typing import Any
 import sqlparse
 from sqlparse.sql import Identifier, IdentifierList
-from sqlparse.tokens import Keyword, DML
+from sqlparse.tokens import Keyword
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class DataExtractor:
 
             with open(file_path, "r", newline="", encoding="utf-8") as csvfile:
                 reader = csv.reader(csvfile, delimiter=",")
-                # Проверяю, что первая строка - заголовки.
+                # Проверяем, что первая строка - заголовки.
                 # Так как по умолчанию проект работает с config-файлом,
                 # я не буду пытаться реализовать какую-то универсальную логику.
                 headers = next(reader)
@@ -89,7 +89,7 @@ class DataExtractor:
         def _extract_tables(sql: str) -> list[str]:
             """
             Простая функция извлечения имён таблиц из SQL-запроса.
-            Ищет токены после ключевых слов FROM и JOIN.
+            Ищет токены после ключевых слов WITH, FROM и JOIN.
             """
             parsed = sqlparse.parse(sql)
             tables = set()
@@ -98,6 +98,7 @@ class DataExtractor:
                     if token.ttype is Keyword and token.value.upper() in (
                         "FROM",
                         "JOIN",
+                        "WITH"
                     ):
                         next_tok = stmt.token_next(
                             stmt.token_index(token), skip_ws=True, skip_cm=True
