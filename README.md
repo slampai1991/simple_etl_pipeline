@@ -29,15 +29,10 @@ csv_config:
   headers: ["id", "name", "created_at"]
 
 transformations:
-  clean_data:
-    type: drop_nulls
-    columns: "*"
-  remove_duplicates:
-    type: drop_duplicates
-    columns: "*"
+  drop_nulls: true
+  drop_duplicates: true
 
 validation:
-  enable_foreign_keys: true
   foreign_keys:
     orders:
       user_id: users
@@ -50,12 +45,6 @@ load_config:
     user: your_user
     password: your_password
     database: your_database
-  clickhouse:
-    host: your-ch-host.com
-    port: 9440
-    user: default
-    password: your_password
-    secure: true
 ```
 
 ## 🚀 Быстрый старт
@@ -76,9 +65,9 @@ load_config:
 
 | Тип           | Поддержка | Комментарий                              |
 |---------------|-----------|-------------------------------------------|
-| SQLite        | ✅         | Автоматическая генерация + извлечение     |
+| SQLite        | ✅         | Автоматическая генерация + извлечение + загрузка    |
 | CSV           | ✅         | Поддержка кастомных заголовков            |
-| PostgreSQL    | ✅         | Универсальный загрузчик (`to_sql`)        |
+| PostgreSQL    | 🔜         | Универсальный загрузчик (`to_sql`)        |
 | ClickHouse    | 🔜         | Заготовка под `clickhouse-connect` или `clickhouse-driver` |
 
 ## 📈 Профилирование
@@ -96,7 +85,7 @@ load_config:
 - Уникальности
 - Внешних ключей (с мягкой обработкой ошибок)
 
-## 🧪 Тестирование
+## 🧪 Тестирование (SOON)
 
 Планируется покрытие модулей юнит-тестами (`pytest`).
 
@@ -111,6 +100,9 @@ load_config:
 
 ```
 project/
+├── analytics/
+│   ├── analytics.py
+│   └── visualiazation.py
 ├── src/
 │   ├── extract.py
 │   ├── transform.py
