@@ -1,0 +1,142 @@
+db_name: "synth_sqlite_database.db"
+
+db_path: "data/"
+
+sqlite_tables:
+  - name: users
+    num_rows: 50
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - name: TEXT
+      - age: INTEGER
+      - phone: TEXT
+      - email: TEXT
+      - country: TEXT
+      - reg_date: TEXT
+  - name: products
+    num_rows: 50
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - name: TEXT
+      - category: TEXT
+      - price: REAL
+  - name: logs
+    num_rows: 50
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - severity: TEXT
+      - error_message: TEXT
+      - timestamp: TEXT
+  - name: transactions
+    num_rows: 50
+    columns:
+      - user_id: INTEGER
+      - amount: REAL
+      - date: TEXT
+      - description: TEXT
+      - status: TEXT
+    constraints:
+      - PRIMARY KEY (user_id, date)
+      - FOREIGN KEY (user_id) REFERENCES users(id)
+  - name: user_actions
+    num_rows: 50
+    columns:
+      - user_id: INTEGER
+      - action: TEXT
+      - timestamp: TEXT
+    constraints:
+      - PRIMARY KEY (user_id, timestamp)
+      - FOREIGN KEY (user_id) REFERENCES users(id)
+  - name: orders
+    num_rows: 50
+    columns:
+      - id: INTEGER PRIMARY KEY AUTOINCREMENT
+      - user_id: INTEGER
+      - product_id: INTEGER
+      - purchase_date: TEXT
+      - status: TEXT
+      - amount: REAL
+    constraints:
+      - FOREIGN KEY (user_id) REFERENCES users(id)
+      - FOREIGN KEY (product_id) REFERENCES products(id)
+
+word_lists:
+  products: [
+    "Smart LED TV",
+    "Wireless Headphones",
+    "Gaming Laptop",
+    "Coffee Maker",
+    "Robot Vacuum",
+    "Fitness Tracker", 
+    "Digital Camera",
+    "Blender",
+    "Air Purifier",
+    "Electric Toothbrush",
+    "Portable Speaker",
+    "Microwave Oven",
+    "Tablet Computer",
+    "Security Camera",
+    "Electric Kettle",
+    "Hair Dryer",
+    "Smartwatch",
+    "Air Fryer",
+    "Bluetooth Earbuds",
+    "Food Processor",
+    "Smart Doorbell",
+    "Electric Scooter",
+    "Desk Lamp",
+    "Wireless Mouse",
+    "Mechanical Keyboard",
+    "Power Bank",
+    "Smart Scale",
+    "Rice Cooker",
+    "Dash Cam",
+    "Electric Fan",
+    "Wireless Charger",
+    "Gaming Console",
+    "External SSD",
+    "Smart Thermostat",
+    "Instant Pot",
+    "Noise Cancelling Headphones",
+    "Drone Camera",
+    "Electric Toaster",
+    "Smart Light Bulbs",
+    "Wireless Router",
+    "Handheld Vacuum",
+    "Smart Display",
+    "Electric Shaver",
+    "Portable Monitor",
+    "Smart Plug",
+    "Action Camera",
+    "Electric Blanket",
+    "Wireless Printer",
+    "Smart Lock",
+    "Portable Projector"
+    ]  
+  models: ['Model 1', 'Model 2', 'Model 3', 'Model 4', 'Model 5',
+          'Model 6', 'Model 7', 'Model 8', 'Model 9', 'Model 10']
+  colors: ['White', 'Yellow', 'Black', 'Red', 'Blue', 
+           'Green', 'Purple', 'Orange', 'Pink', 'Brown', 
+           'Gray', 'Silver', 'Gold', 'Violet', 'Bronze']
+  categories: ["Electronics", "Furniture", "Clothing", "Kitchenware", "Toys",
+               "Books", "Sports", "Beauty", "Automotive", "Gardening", "Health",
+               "Office Supplies", "Pet Supplies", "Jewelry", "Watches", "Footwear", "Bags"]
+  order_status:  ['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED']
+  actions: ["LOGIN", "LOGOUT", "PURCHASE", "ADD_TO_CART", "REMOVE_FROM_CART", 
+            "SEARCH", "VIEW_PRODUCT", "CHECKOUT", "UPDATE_PROFILE", "SUBSCRIBE"]
+  status: ['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED']
+  log_messages: {
+    "INFO": ["Operation completed successfully.", "User logged in.",
+             "Data saved to database.", "File uploaded successfully.",
+             "Connection established."],
+    "WARNING": ["Low disk space.", "High memory usage.", "Unresponsive script.",
+                "Deprecated API usage.", "Slow response time."],
+    "ERROR": ["File not found.", "Database connection failed.", "Invalid input data.",
+              "Permission denied.", "Network error."],
+    "CRITICAL": ["System crash.", "Data corruption detected.", "Security breach.",
+                 "Service unavailable.", "Critical hardware failure."]
+  }
+  transaction_desc: ["Payment for subscription", "Refund for canceled subscription", 
+                     "Payment for product purchase", "Refund for canceled product purchase",
+                     "Payment for service", "Refund for canceled service",
+                     "Payment for product return", "Payment for product exchange"]

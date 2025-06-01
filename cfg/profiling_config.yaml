@@ -1,0 +1,12 @@
+enabled: true
+
+reports_path: ./reports/profiling/
+
+stats:
+  - count
+  - mean
+  - median
+  - std
+  - missing_values
+
+detailed: false

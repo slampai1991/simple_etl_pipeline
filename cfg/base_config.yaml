@@ -1,0 +1,3 @@
+# Конфиг логирования
+log_config:
+  log_path: "logs/"

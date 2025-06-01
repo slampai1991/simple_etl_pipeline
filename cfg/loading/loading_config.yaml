@@ -1,0 +1,18 @@
+sqlite:
+  db_name: "result_sqlite_database.db"
+  db_path: "db/"
+  if_exists: "replace"
+
+clickhouse:
+  host: your-ch-host.com
+  port: port
+  user: default
+  password: your_password
+  secure: true
+
+postgres:
+  host: localhost
+  port: port
+  user: your_user
+  password: your_password
+  database: your_database

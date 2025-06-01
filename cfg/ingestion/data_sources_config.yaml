@@ -1,0 +1,9 @@
+api:
+  fakestore:
+    url: "https://fakestoreapi.com/products"
+    method: GET
+    params: {}
+    headers:
+      Accept: "application/json"
+csv: "data/"
+sqlite: "data/"
