@@ -232,7 +232,7 @@ validation_config:
             'LOGIN', 'LOGOUT', 'PURCHASE', 'ADD_TO_CART', 'REMOVE_FROM_CART',
             'SEARCH', 'VIEW_PRODUCT', 'CHECKOUT', 'UPDATE_PROFILE', 'SUBSCRIBE'
           ])
-        - "user_id.notnull() and user_id.astype(str).str.match(r'^[1-9]\\d*$', na=False)"
+        - "user_id > 0"
         - |
           timestamp.str.match(
             r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$',

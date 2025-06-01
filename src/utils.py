@@ -414,6 +414,25 @@ class DataValidator:
         self.composite_key_config = validation_config.get("composite_keys", {})
 
     def _filter_df(self, df, condition: str):
+        """
+        Применяет фильтр к DataFrame на основе заданного строкового условия.
+
+        Поддерживаются следующие типы выражений:
+            1. <column>.str.contains(<pattern>[, na=True|False])
+            2. <column>.str.match(<pattern>[, na=True|False])
+            3. <column>.isin([...])
+            4. <column>.str.len() <op> <int> — поддерживаются операторы >, <, >=, <=, ==, !=
+            5. Любое выражение, совместимое с DataFrame.query(..., engine="python")
+
+        В случае некорректного выражения — возвращается оригинальный DataFrame и логируется предупреждение.
+
+        Args:
+            df (pd.DataFrame): DataFrame, к которому нужно применить фильтр.
+            condition (str): Строковое выражение фильтрации.
+
+        Returns:
+            pd.DataFrame: Отфильтрованный DataFrame.
+        """
         logger.debug(f"Применяется фильтр: {condition}")
 
         # 1) Попытаться напрямую через eval на df.<condition>

@@ -1,10 +1,10 @@
+import os
+import sqlite3
 import logging
 import pandas as pd
 from typing import Literal
 from sqlalchemy import create_engine
 from clickhouse_connect import get_client
-import os
-import sqlite3
 
 
 logger = logging.getLogger(__name__)
@@ -71,26 +71,19 @@ class SQLiteLoader:
     """
     def __init__(self, load_config: dict):
         self.cfg = load_config
+        if not os.path.exists(self.cfg["db_path"]):
+            os.makedirs(self.cfg["db_path"])
+            logger.info(f"Создана директория для базы данных: {self.cfg['db_path']}")
+        self.db_path = os.path.join(self.cfg["db_path"], self.cfg["db_name"])
 
     def load_dataframe(self, table: str, df: pd.DataFrame) -> None:
         """
-        Загружает DataFrame в указанную таблицу SQLite.
+        Загружает одну таблицу (DataFrame) в SQLite.
 
         Args:
-            df (pd.DataFrame): Данные для загрузки.
             table (str): Имя таблицы в SQLite.
+            df (pd.DataFrame): Данные для загрузки.
         """
-        
-        if not os.path.exists(self.cfg["db_path"]):
-            os.makedirs(self.cfg["db_path"])
-            logger.info(
-                f"Создана директория для базы данных: {self.cfg['db_path']}"
-            )
-        self.db_path = os.path.join(
-            self.cfg["db_path"],
-            self.cfg["db_name"],
-        )
-        
         if df.empty:
             logger.info(f"Пропущена загрузка пустой таблицы '{table}' в SQLite.")
             return
@@ -102,3 +95,15 @@ class SQLiteLoader:
             logger.info(f"Таблица '{table}' успешно загружена в SQLite.")
         except Exception as e:
             logger.error(f"Ошибка при загрузке '{table}' в SQLite: {e}", exc_info=True)
+
+    def load_all(self, data: dict[str, pd.DataFrame]) -> None:
+        """
+        Загружает все таблицы из словаря в SQLite.
+
+        Args:
+            data (dict[str, pd.DataFrame]): Словарь, где ключ — имя таблицы, значение — соответствующий DataFrame.
+        """
+        logger.info("Начинается массовая загрузка всех таблиц в SQLite...")
+        
+        for table_name, df in data.items():
+            self.load_dataframe(table_name, df)

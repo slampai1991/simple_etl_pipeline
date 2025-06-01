@@ -44,18 +44,20 @@ try:
     # datagen = utils.DataGenerator(config=config)
     # datagen.generate_sqlite()
 
-    # extractor = extract.DataExtractor(config=config)
-    # transformer = transform.DataTransformer(config=config)
-    # validator = utils.DataValidator(validation_config=config["validation_config"])
-    # profiler = utils.DataProfiler(profiling_config=config["profiling_config"])
-    # loader = load.SQLiteLoader(load_config=config["load_config"]["sqlite"])
+    extractor = extract.DataExtractor(config=config)
+    transformer = transform.DataTransformer(config=config)
+    validator = utils.DataValidator(validation_config=config["validation_config"])
+    profiler = utils.DataProfiler(profiling_config=config["profiling_config"])
+    loader = load.SQLiteLoader(load_config=config["load_config"]["sqlite"])
 
-    # raw_data = extractor.extract_sqlite(table_name='user_actions')
-    # transfromed_data = transformer.transform(raw_data)
-    # pp.pprint(transfromed_data)
-    # validated_data = validator.run_all_validations(transfromed_data)
-    # pp.pprint(validated_data)
-    pass
+    raw_data = extractor.extract_sqlite(query='SELECT id, name, action, timestamp action_date FROM users u JOIN user_actions ua ON u.id = ua.user_id')
+    transfromed_data = transformer.transform(raw_data)
+    validated_data = validator.run_all_validations(transfromed_data)
+    pp.pprint(validated_data)
+    print(transfromed_data == validated_data)
+    loader.load_all(validated_data)
+    logging.info("Скрипт успешно выполнен")
+
 except Exception as e:
     logging.error(f"Ошибка при выполнении скрипта: {e}")
     raise
