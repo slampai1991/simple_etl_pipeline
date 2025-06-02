@@ -1,3 +1,31 @@
-filename: employees_synth_data.csv
-num_rows: 10000
-headers: ['ID', 'NAME', 'AGE', 'PHONE', 'EMAIL', 'COUNTRY', 'HIRE_DATE', 'DEPARTMENT', 'JOB_TITLE', 'SALARY']
+csv_generation:
+  enabled: true
+  output:
+    path: "data/"
+    filename: "employees_synth_data.csv"
+    delimiter: ","
+    quotechar: "\""
+    encoding: "utf-8"
+  rows: 10000
+  schema:
+    headers:
+      - name: ID
+        type: INTEGER
+      - name: NAME
+        type: TEXT
+      - name: AGE
+        type: INTEGER
+      - name: PHONE
+        type: TEXT
+      - name: EMAIL
+        type: TEXT
+      - name: COUNTRY
+        type: TEXT
+      - name: HIRE_DATE
+        type: TEXT
+      - name: DEPARTMENT
+        type: TEXT
+      - name: JOB_TITLE
+        type: TEXT
+      - name: SALARY
+        type: REAL

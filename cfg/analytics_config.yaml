@@ -1,18 +1,29 @@
 analytics:
   users:
-    get_all: "SELECT * FROM users;"
+    get_all: >
+      SELECT * FROM users;
     active_last_30_days: >
-      SELECT * FROM users WHERE reg_date >= DATE('now', '-30 day');
+      SELECT * FROM users
+      WHERE reg_date >= DATE('now', '-30 day');
 
   transactions:
-    top_10: "SELECT * FROM transactions ORDER BY amount DESC LIMIT 10;"
+    top_10: >
+      SELECT * FROM transactions
+      ORDER BY amount DESC
+      LIMIT 10;
     volume_by_status: >
-      SELECT status, COUNT(*) as cnt FROM transactions GROUP BY status;
+      SELECT status, COUNT(*) as cnt
+      FROM transactions
+      GROUP BY status;
 
   logs:
-    recent: "SELECT * FROM logs WHERE timestamp >= DATE('now', '-7 day');"
+    recent: >
+      SELECT * FROM logs
+      WHERE timestamp >= DATE('now', '-7 day');
     by_severity: >
-      SELECT severity, COUNT(*) count FROM logs GROUP BY severity;
+      SELECT severity, COUNT(*) AS count
+      FROM logs
+      GROUP BY severity;
 
   orders:
     active_users_orders: >
@@ -22,7 +33,8 @@ analytics:
       WHERE o.status = 'COMPLETED';
 
     revenue_by_day: >
-      SELECT DATE(purchase_date) as day, SUM(amount) as revenue
+      SELECT DATE(purchase_date) AS day,
+             SUM(amount) AS revenue
       FROM orders
       GROUP BY day
       ORDER BY day DESC;
@@ -37,14 +49,15 @@ analytics:
 
   user_behavior:
     most_active_users: >
-      SELECT user_id, COUNT(*) as actions
+      SELECT user_id, COUNT(*) AS actions
       FROM user_actions
       GROUP BY user_id
       ORDER BY actions DESC
       LIMIT 10;
 
     peak_activity_hours: >
-      SELECT STRFTIME('%H', timestamp) as hour, COUNT(*) as cnt
+      SELECT STRFTIME('%H', timestamp) AS hour,
+             COUNT(*) AS cnt
       FROM user_actions
       GROUP BY hour
       ORDER BY cnt DESC;

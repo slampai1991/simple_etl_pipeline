@@ -6,6 +6,12 @@ log_config:
   to_console: true
 
   per_stage:
+    generation:
+      enabled: true
+      file_prefix: "generate"
+    ingestion:
+      enabled: true
+      file_prefix: "ingest"
     extraction:
       enabled: true
       file_prefix: "extract"

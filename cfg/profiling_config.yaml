@@ -1,12 +1,19 @@
-enabled: true
+profiling:
+  enabled: true
+  reports_path: "./reports/profiling/"
+  detailed: false
+  include_columns: []  # если не пустой, применится фильтрация по колонкам
+  exclude_columns: []
 
-reports_path: ./reports/profiling/
-
-stats:
-  - count
-  - mean
-  - median
-  - std
-  - missing_values
-
-detailed: false
+  stats:
+    - count
+    - mean
+    - median
+    - std
+    - min
+    - max
+    - missing_values
+    - unique
+    - mode
+    - null_percentage
+    - histogram

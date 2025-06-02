@@ -1,3 +1,11 @@
-dropna: true
-
-drop_duplicates: true
+transformation:
+  enabled: true
+  operations:
+    dropna:
+      enabled: true
+    drop_duplicates:
+      enabled: true
+    normalize_columns:
+      enabled: false  # можно включить при необходимости
+    standardize_dates:
+      enabled: false  # зарезервировано
