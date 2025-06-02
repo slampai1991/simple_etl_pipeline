@@ -1,29 +1,26 @@
-# Конфиг логирования
 log_config:
   log_path: "logs/"
-  level: "INFO"
-  format: "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
-  to_console: true
+  log_level: "INFO"   # уровень логирования: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_rotation:
+    enabled: true
+    when: "midnight"
+    interval: 1
+    backup_count: 7
 
-  per_stage:
-    generation:
-      enabled: true
-      file_prefix: "generate"
-    ingestion:
-      enabled: true
-      file_prefix: "ingest"
+  stages:
     extraction:
       enabled: true
-      file_prefix: "extract"
+      log_file: "{date}_extraction.log"
     transformation:
       enabled: true
-      file_prefix: "transform"
+      log_file: "{date}_transformation.log"
     validation:
       enabled: true
-      file_prefix: "validate"
+      log_file: "{date}_validation.log"
     profiling:
       enabled: true
-      file_prefix: "profile"
+      log_file: "{date}_profiling.log"
     loading:
       enabled: true
-      file_prefix: "load"
+      log_file: "{date}_loading.log"
