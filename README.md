@@ -103,6 +103,19 @@ project/
 ├── analytics/
 │   ├── analytics.py
 │   └── visualiazation.py
+├── cfg/
+│   ├── generation/
+│   │   ├── csv_gen_config.yml
+│   │   └── sqlite_gen_config.yml
+│   ├── ingestion/
+│   │   └── data_sources_config.yml
+│   ├── transformation/
+│   │   ├── transformation_config.yml
+│   │   └── validation_config.yml
+│   ├── loading/
+│   │   └── loading_config.yml
+│   ├── analytics_config.yml
+│   └── profiling_config.yml
 ├── src/
 │   ├── extract.py
 │   ├── transform.py

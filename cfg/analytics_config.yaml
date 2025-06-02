@@ -12,7 +12,7 @@ analytics:
   logs:
     recent: "SELECT * FROM logs WHERE timestamp >= DATE('now', '-7 day');"
     by_severity: >
-      SELECT severity, COUNT(*) FROM logs GROUP BY severity;
+      SELECT severity, COUNT(*) count FROM logs GROUP BY severity;
 
   orders:
     active_users_orders: >

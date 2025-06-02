@@ -3,6 +3,7 @@ import os
 import logging
 import datetime
 import pprint as pp
+from analytics import analysis, visualization
 from src import extract, transform, load, utils
 
 try:

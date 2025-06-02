@@ -5,5 +5,10 @@ api:
     params: {}
     headers:
       Accept: "application/json"
-csv: "data/"
-sqlite: "data/"
+csv:
+  path: data/
+  include: ["*.csv"]
+
+sqlite:
+  path: data/
+  include: ["*.db"]

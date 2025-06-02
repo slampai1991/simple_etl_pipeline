@@ -1,3 +1,23 @@
 # Конфиг логирования
 log_config:
   log_path: "logs/"
+  level: "INFO"
+  format: "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+  to_console: true
+
+  per_stage:
+    extraction:
+      enabled: true
+      file_prefix: "extract"
+    transformation:
+      enabled: true
+      file_prefix: "transform"
+    validation:
+      enabled: true
+      file_prefix: "validate"
+    profiling:
+      enabled: true
+      file_prefix: "profile"
+    loading:
+      enabled: true
+      file_prefix: "load"
