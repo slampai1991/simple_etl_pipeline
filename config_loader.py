@@ -1,8 +1,6 @@
 import yaml
 import os
 import logging
-import pprint as pp
-from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
@@ -29,7 +27,7 @@ class ConfigLoader:
         self.base_config_path = os.path.join(cfg_root, base_config_name)
         self.base_config = self._load_yaml(self.base_config_path)
 
-    def _load_yaml(self, path: str) -> Optional[dict]:
+    def _load_yaml(self, path: str) -> dict | None:
         """
         Загружает YAML-файл, если он существует. Возвращает None в случае ошибки.
 
@@ -56,7 +54,7 @@ class ConfigLoader:
             return None
 
     def _merge_configs(
-        self, base: Optional[dict] = None, override: Optional[dict] = None
+        self, base: dict | None = None, override: dict | None = None
     ) -> dict:
         """
         Рекурсивно объединяет две конфигурации (base и override), где override имеет приоритет.
@@ -82,7 +80,7 @@ class ConfigLoader:
         return merged
 
     def load_stage_config(
-        self, stage: str, required_keys: Optional[list] = None
+        self, stage: str, required_keys: list | None = None
     ) -> dict:
         """
         Загружает конфигурацию конкретного этапа (например, extraction),
@@ -110,8 +108,7 @@ class ConfigLoader:
         return combined_config
 
 
-# Пример отладки
-if __name__ == "__main__":
+if __name__ == '__main__':
     loader = ConfigLoader()
-    extraction_cfg = loader.load_stage_config("extraction", required_keys=["api"])
-    pp.pprint(extraction_cfg)
+    full_cfg = loader.load_stage_config("generation", required_keys=["generation"])
+    print(full_cfg)
