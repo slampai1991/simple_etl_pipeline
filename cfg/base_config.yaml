@@ -9,6 +9,9 @@ log_config:
     backup_count: 7
 
   stages:
+    generation:
+      enabled: true
+      log_file: "{date}_generation.log"
     extraction:
       enabled: true
       log_file: "{date}_extraction.log"
@@ -24,3 +27,6 @@ log_config:
     loading:
       enabled: true
       log_file: "{date}_loading.log"
+    analytics:
+      enabled: true
+      log_file: "{date}_analytics.log"
