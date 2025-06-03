@@ -121,7 +121,7 @@ project/
 │   ├── transform.py
 │   ├── load.py
 │   └── utils.py
-├── config.yaml
+├── config_loader.py
 ├── main.py
 └── README.md
 ```
