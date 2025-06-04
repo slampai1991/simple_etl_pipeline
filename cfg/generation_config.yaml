@@ -1,4 +1,4 @@
-sqlite_generation:
+sqlite:
   enabled: true
   output:
     db_name: "synth_sqlite_database.db"
@@ -156,3 +156,34 @@ sqlite_generation:
                        "Payment for service", "Refund for canceled service",
                        "Payment for product return", "Payment for product exchange"]
   
+csv:
+ enabled: true
+ output:
+   path: "data/"
+   filename: "employees_synth_data.csv"
+   delimiter: ","
+   quotechar: "\""
+   encoding: "utf-8"
+ rows: 100
+ schema:
+   headers:
+     - name: ID
+       type: INTEGER
+     - name: NAME
+       type: TEXT
+     - name: AGE
+       type: INTEGER
+     - name: PHONE
+       type: TEXT
+     - name: EMAIL
+       type: TEXT
+     - name: COUNTRY
+       type: TEXT
+     - name: HIRE_DATE
+       type: TEXT
+     - name: DEPARTMENT
+       type: TEXT
+     - name: JOB_TITLE
+       type: TEXT
+     - name: SALARY
+       type: REAL
