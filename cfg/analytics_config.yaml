@@ -1,4 +1,4 @@
-analytics:
+predefined_queries:
   users:
     get_all: >
       SELECT * FROM users;
@@ -47,7 +47,7 @@ analytics:
       ORDER BY total_orders DESC
       LIMIT 5;
 
-  user_behavior:
+  user_actions:
     most_active_users: >
       SELECT user_id, COUNT(*) AS actions
       FROM user_actions

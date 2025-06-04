@@ -1,31 +1,30 @@
-loading:
-  sqlite:
-    enabled: true
-    db_name: "result_sqlite_database.db"
-    db_path: "db/"
-    if_exists: "replace"
-    timeout: 30  # seconds
-    log: true
+sqlite:
+  enabled: true
+  db_name: "result_sqlite_database.db"
+  db_path: "db/"
+  if_exists: "replace"
+  timeout: 30 # seconds
+  log: true
 
-  clickhouse:
-    enabled: false
-    host: "your-ch-host.com"
-    port: 8443
-    user: "default"
-    password: "your_password"
-    secure: true
-    compression: true
-    database: "default"
-    table_mappings: {}  # table_name: target_table
+clickhouse:
+  enabled: false
+  host: "your-ch-host.com"
+  port: 8443
+  user: "default"
+  password: "your_password"
+  secure: true
+  compression: true
+  database: "default"
+  table_mappings: {} # table_name: target_table
 
-  postgres:
-    enabled: false
-    host: "localhost"
-    port: 5432
-    user: "your_user"
-    password: "your_password"
-    database: "your_database"
-    schema: "public"
-    sslmode: "prefer"
-    batch_size: 500
-    table_mappings: {}  # table_name: target_table
+postgres:
+  enabled: false
+  host: "localhost"
+  port: 5432
+  user: "your_user"
+  password: "your_password"
+  database: "your_database"
+  schema: "public"
+  sslmode: "prefer"
+  batch_size: 500
+  table_mappings: {} # table_name: target_table

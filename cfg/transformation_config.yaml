@@ -1,17 +1,15 @@
-transformation:
-  enabled: true
-  operations:
-    dropna:
-      enabled: true
-    drop_duplicates:
-      enabled: true
-    normalize_columns:
-      enabled: false  # можно включить при необходимости
-    standardize_dates:
-      enabled: false  # зарезервировано
-  operation_order:
-    - dropna
-    - drop_duplicates
-    - normalize_columns
-    - standardize_dates
-
+enabled: true
+operations:
+  dropna:
+    enabled: true
+  drop_duplicates:
+    enabled: true
+  normalize_columns:
+    enabled: false # можно включить при необходимости
+  standardize_dates:
+    enabled: false # зарезервировано
+operation_order:
+  - dropna
+  - drop_duplicates
+  - normalize_columns
+  - standardize_dates

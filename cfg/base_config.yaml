@@ -1,6 +1,6 @@
 log_config:
   log_path: "logs/"
-  log_level: "INFO"   # уровень логирования: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  log_level: "INFO" # уровень логирования: DEBUG, INFO, WARNING, ERROR, CRITICAL
   log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   log_rotation:
     enabled: true

@@ -76,114 +76,201 @@ sqlite:
         - "FOREIGN KEY (product_id) REFERENCES products(id)"
 
   word_lists:
-    products: [
-      "Smart LED TV",
-      "Wireless Headphones",
-      "Gaming Laptop",
-      "Coffee Maker",
-      "Robot Vacuum",
-      "Fitness Tracker", 
-      "Digital Camera",
-      "Blender",
-      "Air Purifier",
-      "Electric Toothbrush",
-      "Portable Speaker",
-      "Microwave Oven",
-      "Tablet Computer",
-      "Security Camera",
-      "Electric Kettle",
-      "Hair Dryer",
-      "Smartwatch",
-      "Air Fryer",
-      "Bluetooth Earbuds",
-      "Food Processor",
-      "Smart Doorbell",
-      "Electric Scooter",
-      "Desk Lamp",
-      "Wireless Mouse",
-      "Mechanical Keyboard",
-      "Power Bank",
-      "Smart Scale",
-      "Rice Cooker",
-      "Dash Cam",
-      "Electric Fan",
-      "Wireless Charger",
-      "Gaming Console",
-      "External SSD",
-      "Smart Thermostat",
-      "Instant Pot",
-      "Noise Cancelling Headphones",
-      "Drone Camera",
-      "Electric Toaster",
-      "Smart Light Bulbs",
-      "Wireless Router",
-      "Handheld Vacuum",
-      "Smart Display",
-      "Electric Shaver",
-      "Portable Monitor",
-      "Smart Plug",
-      "Action Camera",
-      "Electric Blanket",
-      "Wireless Printer",
-      "Smart Lock",
-      "Portable Projector"
-      ]  
-    models: ['Model 1', 'Model 2', 'Model 3', 'Model 4', 'Model 5',
-            'Model 6', 'Model 7', 'Model 8', 'Model 9', 'Model 10']
-    colors: ['White', 'Yellow', 'Black', 'Red', 'Blue', 
-             'Green', 'Purple', 'Orange', 'Pink', 'Brown', 
-             'Gray', 'Silver', 'Gold', 'Violet', 'Bronze']
-    categories: ["Electronics", "Furniture", "Clothing", "Kitchenware", "Toys",
-                 "Books", "Sports", "Beauty", "Automotive", "Gardening", "Health",
-                 "Office Supplies", "Pet Supplies", "Jewelry", "Watches", "Footwear", "Bags"]
-    order_status:  ['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED']
-    actions: ["LOGIN", "LOGOUT", "PURCHASE", "ADD_TO_CART", "REMOVE_FROM_CART", 
-              "SEARCH", "VIEW_PRODUCT", "CHECKOUT", "UPDATE_PROFILE", "SUBSCRIBE"]
-    status: ['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED']
-    log_messages: {
-      "INFO": ["Operation completed successfully.", "User logged in.",
-               "Data saved to database.", "File uploaded successfully.",
-               "Connection established."],
-      "WARNING": ["Low disk space.", "High memory usage.", "Unresponsive script.",
-                  "Deprecated API usage.", "Slow response time."],
-      "ERROR": ["File not found.", "Database connection failed.", "Invalid input data.",
-                "Permission denied.", "Network error."],
-      "CRITICAL": ["System crash.", "Data corruption detected.", "Security breach.",
-                   "Service unavailable.", "Critical hardware failure."]
-    }
-    transaction_desc: ["Payment for subscription", "Refund for canceled subscription", 
-                       "Payment for product purchase", "Refund for canceled product purchase",
-                       "Payment for service", "Refund for canceled service",
-                       "Payment for product return", "Payment for product exchange"]
-  
+    products:
+      [
+        "Smart LED TV",
+        "Wireless Headphones",
+        "Gaming Laptop",
+        "Coffee Maker",
+        "Robot Vacuum",
+        "Fitness Tracker",
+        "Digital Camera",
+        "Blender",
+        "Air Purifier",
+        "Electric Toothbrush",
+        "Portable Speaker",
+        "Microwave Oven",
+        "Tablet Computer",
+        "Security Camera",
+        "Electric Kettle",
+        "Hair Dryer",
+        "Smartwatch",
+        "Air Fryer",
+        "Bluetooth Earbuds",
+        "Food Processor",
+        "Smart Doorbell",
+        "Electric Scooter",
+        "Desk Lamp",
+        "Wireless Mouse",
+        "Mechanical Keyboard",
+        "Power Bank",
+        "Smart Scale",
+        "Rice Cooker",
+        "Dash Cam",
+        "Electric Fan",
+        "Wireless Charger",
+        "Gaming Console",
+        "External SSD",
+        "Smart Thermostat",
+        "Instant Pot",
+        "Noise Cancelling Headphones",
+        "Drone Camera",
+        "Electric Toaster",
+        "Smart Light Bulbs",
+        "Wireless Router",
+        "Handheld Vacuum",
+        "Smart Display",
+        "Electric Shaver",
+        "Portable Monitor",
+        "Smart Plug",
+        "Action Camera",
+        "Electric Blanket",
+        "Wireless Printer",
+        "Smart Lock",
+        "Portable Projector",
+      ]
+    models:
+      [
+        "Model 1",
+        "Model 2",
+        "Model 3",
+        "Model 4",
+        "Model 5",
+        "Model 6",
+        "Model 7",
+        "Model 8",
+        "Model 9",
+        "Model 10",
+      ]
+    colors:
+      [
+        "White",
+        "Yellow",
+        "Black",
+        "Red",
+        "Blue",
+        "Green",
+        "Purple",
+        "Orange",
+        "Pink",
+        "Brown",
+        "Gray",
+        "Silver",
+        "Gold",
+        "Violet",
+        "Bronze",
+      ]
+    categories:
+      [
+        "Electronics",
+        "Furniture",
+        "Clothing",
+        "Kitchenware",
+        "Toys",
+        "Books",
+        "Sports",
+        "Beauty",
+        "Automotive",
+        "Gardening",
+        "Health",
+        "Office Supplies",
+        "Pet Supplies",
+        "Jewelry",
+        "Watches",
+        "Footwear",
+        "Bags",
+      ]
+    order_status:
+      ["PENDING", "SHIPPED", "DELIVERED", "RETURNED", "COMPLETED", "CANCELLED"]
+    actions:
+      [
+        "LOGIN",
+        "LOGOUT",
+        "PURCHASE",
+        "ADD_TO_CART",
+        "REMOVE_FROM_CART",
+        "SEARCH",
+        "VIEW_PRODUCT",
+        "CHECKOUT",
+        "UPDATE_PROFILE",
+        "SUBSCRIBE",
+      ]
+    status: ["PENDING", "COMPLETED", "FAILED", "CANCELLED"]
+    log_messages:
+      {
+        "INFO":
+          [
+            "Operation completed successfully.",
+            "User logged in.",
+            "Data saved to database.",
+            "File uploaded successfully.",
+            "Connection established.",
+          ],
+        "WARNING":
+          [
+            "Low disk space.",
+            "High memory usage.",
+            "Unresponsive script.",
+            "Deprecated API usage.",
+            "Slow response time.",
+          ],
+        "ERROR":
+          [
+            "File not found.",
+            "Database connection failed.",
+            "Invalid input data.",
+            "Permission denied.",
+            "Network error.",
+          ],
+        "CRITICAL":
+          [
+            "System crash.",
+            "Data corruption detected.",
+            "Security breach.",
+            "Service unavailable.",
+            "Critical hardware failure.",
+          ],
+      }
+    transaction_desc:
+      [
+        "Payment for subscription",
+        "Refund for canceled subscription",
+        "Payment for product purchase",
+        "Refund for canceled product purchase",
+        "Payment for service",
+        "Refund for canceled service",
+        "Payment for product return",
+        "Payment for product exchange",
+      ]
+
 csv:
- enabled: true
- output:
-   path: "data/"
-   filename: "employees_synth_data.csv"
-   delimiter: ","
-   quotechar: "\""
-   encoding: "utf-8"
- rows: 100
- schema:
-   headers:
-     - name: ID
-       type: INTEGER
-     - name: NAME
-       type: TEXT
-     - name: AGE
-       type: INTEGER
-     - name: PHONE
-       type: TEXT
-     - name: EMAIL
-       type: TEXT
-     - name: COUNTRY
-       type: TEXT
-     - name: HIRE_DATE
-       type: TEXT
-     - name: DEPARTMENT
-       type: TEXT
-     - name: JOB_TITLE
-       type: TEXT
-     - name: SALARY
-       type: REAL
+  enabled: true
+  output:
+    path: "data/"
+    filename: "employees_synth_data.csv"
+    delimiter: ","
+    quotechar: '"'
+    encoding: "utf-8"
+  rows: 100
+  schema:
+    headers:
+      - name: ID
+        type: INTEGER
+      - name: NAME
+        type: TEXT
+      - name: AGE
+        type: INTEGER
+      - name: PHONE
+        type: TEXT
+      - name: EMAIL
+        type: TEXT
+      - name: COUNTRY
+        type: TEXT
+      - name: HIRE_DATE
+        type: TEXT
+      - name: DEPARTMENT
+        type: TEXT
+      - name: JOB_TITLE
+        type: TEXT
+      - name: SALARY
+        type: REAL

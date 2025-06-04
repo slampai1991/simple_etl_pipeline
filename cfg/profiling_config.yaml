@@ -1,20 +1,19 @@
-profiling:
-  enabled: true
-  reports_path: "./reports/profiling/"
-  format: ["html", "json", "xlsx"]
-  detailed: false
-  group_by: ["dataset", "column"]
-  include_columns: []  # если не пустой, применится фильтрация по колонкам
-  exclude_columns: []
-  stats:
-    - count
-    - mean
-    - median
-    - std
-    - min
-    - max
-    - missing_values
-    - unique
-    - mode
-    - missing_percentage
-    - histogram
+enabled: true
+reports_path: "./reports/profiling/"
+format: ["html", "json", "xlsx"]
+detailed: false
+group_by: ["dataset", "column"]
+include_columns: [] # если не пустой, применится фильтрация по колонкам
+exclude_columns: []
+stats:
+  - count
+  - mean
+  - median
+  - std
+  - min
+  - max
+  - missing_values
+  - unique
+  - mode
+  - missing_percentage
+  - histogram
