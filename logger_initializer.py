@@ -312,30 +312,3 @@ class LoggerInitializer:
             logger.error(f"Ошибка при загрузке в {source_name}: {error}")
         else:
             logger.warning(f"Результат загрузки в {source_name} не определён.")
-
-
-def main() -> None:
-    """
-    Демонстрация работы LoggerInitializer.
-    Загружает конфигурацию из файла и инициализирует логгер для стадии 'extraction'.
-    """
-    import yaml
-
-    config_path = "cfg/base_config.yaml"
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Файл конфигурации не найден: {config_path}")
-
-    with open(config_path, "r", encoding="utf-8") as f:
-        config_data: Dict[str, Any] = yaml.safe_load(f)
-
-    logger_initializer = LoggerInitializer(config_data)
-    log = logger_initializer.init_logger("extraction")
-
-    if log:
-        log.info("Запуск этапа extraction.")
-        log.info("Подключение с email:admin@example.com и password=secret123")
-        log.warning("Это предупреждение.")
-
-
-if __name__ == "__main__":
-    main()
