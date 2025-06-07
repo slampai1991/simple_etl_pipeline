@@ -1,31 +1,22 @@
 sqlite:
   enabled: true
-  output:
-    db_name: "synth_sqlite_database.db"
-    db_path: "data/"
+  db_name: "synth_sqlite_database.db"
+  db_path: "data/"
 
   tables:
     - name: users
-      rows: 50
+      rows: 500
       columns:
-        - name: id
-          type: INTEGER
-          options: "PRIMARY KEY AUTOINCREMENT"
-        - name: name
-          type: TEXT
-        - name: age
-          type: INTEGER
-        - name: phone
-          type: TEXT
-        - name: email
-          type: TEXT
-        - name: country
-          type: TEXT
-        - name: reg_date
-          type: TEXT
+        - { name: id, type: INTEGER, options: "PRIMARY KEY AUTOINCREMENT" }
+        - { name: name, type: TEXT }
+        - { name: age, type: INTEGER }
+        - { name: phone, type: TEXT }
+        - { name: email, type: TEXT }
+        - { name: country, type: TEXT }
+        - { name: reg_date, type: TEXT }
 
     - name: products
-      rows: 50
+      rows: 500
       columns:
         - { name: id, type: INTEGER, options: "PRIMARY KEY AUTOINCREMENT" }
         - { name: name, type: TEXT }
@@ -33,7 +24,7 @@ sqlite:
         - { name: price, type: REAL }
 
     - name: logs
-      rows: 50
+      rows: 500
       columns:
         - { name: id, type: INTEGER, options: "PRIMARY KEY AUTOINCREMENT" }
         - { name: severity, type: TEXT }
@@ -41,7 +32,7 @@ sqlite:
         - { name: timestamp, type: TEXT }
 
     - name: transactions
-      rows: 50
+      rows: 500
       columns:
         - { name: user_id, type: INTEGER }
         - { name: amount, type: REAL }
@@ -53,7 +44,7 @@ sqlite:
         - "FOREIGN KEY (user_id) REFERENCES users(id)"
 
     - name: user_actions
-      rows: 50
+      rows: 500
       columns:
         - { name: user_id, type: INTEGER }
         - { name: action, type: TEXT }
@@ -63,7 +54,7 @@ sqlite:
         - "FOREIGN KEY (user_id) REFERENCES users(id)"
 
     - name: orders
-      rows: 50
+      rows: 500
       columns:
         - { name: id, type: INTEGER, options: "PRIMARY KEY AUTOINCREMENT" }
         - { name: user_id, type: INTEGER }
@@ -251,26 +242,39 @@ csv:
     delimiter: ","
     quotechar: '"'
     encoding: "utf-8"
-  rows: 100
+  rows: 500
   schema:
     headers:
-      - name: ID
-        type: INTEGER
-      - name: NAME
-        type: TEXT
-      - name: AGE
-        type: INTEGER
-      - name: PHONE
-        type: TEXT
-      - name: EMAIL
-        type: TEXT
-      - name: COUNTRY
-        type: TEXT
-      - name: HIRE_DATE
-        type: TEXT
-      - name: DEPARTMENT
-        type: TEXT
-      - name: JOB_TITLE
-        type: TEXT
-      - name: SALARY
-        type: REAL
+      - { name: ID, type: INTEGER }
+      - { name: NAME, type: TEXT }
+      - { name: AGE, type: INTEGER }
+      - { name: PHONE, type: TEXT }
+      - { name: EMAIL, type: TEXT }
+      - { name: COUNTRY, type: TEXT }
+      - { name: HIRE_DATE, type: TEXT }
+      - { name: DEPARTMENT, type: TEXT }
+      - { name: JOB_TITLE, type: TEXT }
+      - { name: SALARY, type: REAL }
+
+mongo_config:
+  uri: "mongodb://localhost:27017"
+  db_name: "synthetic_data"
+  collections:
+    - name: employees
+      num_docs: 500
+      schema:
+        name: TEXT
+        age: INTEGER
+        email: EMAIL
+        phone: PHONE
+        hire_date: DATE
+        department: TEXT
+
+anomaly_config:
+  probability: 0.1
+  strategies:
+    TEXT: ["", null, "!!!", "123", "\x00"]
+    INTEGER: [null, -999, "NaN", 9999999999]
+    REAL: [null, -1.234, "abc", 99999999.9]
+    DATE: ["not-a-date", "31-31-2020", null, "2050-01-01"]
+

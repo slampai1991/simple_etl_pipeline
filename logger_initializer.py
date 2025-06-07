@@ -6,7 +6,6 @@ import re
 from datetime import datetime
 from collections.abc import MutableMapping
 from typing import Any
-import yaml
 
 
 class SensitiveDataFilter(logging.Filter):

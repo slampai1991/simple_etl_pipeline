@@ -108,8 +108,8 @@ class ConfigLoader:
         return combined_config
 
 
-# if __name__ == '__main__':
-#     loader = ConfigLoader()
-#     full_cfg = loader.load_stage_config("generation", required_keys=["generation"])
-#     print(full_cfg)
+if __name__ == '__main__':
+    cfgLoader = ConfigLoader()
+    full_cfg = cfgLoader.load_stage_config("generation", required_keys=["generation"])
+    print(full_cfg)
  
