@@ -4,7 +4,9 @@ import logging.handlers
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
+from collections.abc import MutableMapping
+from typing import Any
+import yaml
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -14,7 +16,9 @@ class SensitiveDataFilter(logging.Filter):
     Поддерживает форматы: key=value, key = value, "key": "value", 'key': 'value'.
     """
 
-    def __init__(self, sensitive_fields: dict[str, str], visible_chars: int = 5):
+    def __init__(
+        self, sensitive_fields: dict[str, str], visible_chars: int = 5
+    ) -> None:
         """
         :param sensitive_fields: Словарь {ключ: уровень маскировки ('full' или 'partial')}.
         :param visible_chars: Количество открытых символов при частичной маскировке.
@@ -31,11 +35,11 @@ class SensitiveDataFilter(logging.Filter):
             r"""
             (["']?)(?P<key>{keys})(["']?)  # Ключ в кавычках или нет
             \s*                            # Любые пробелы
-            (?P<sep>=|:)                  # Разделитель = или :
+            (?P<sep>=|:)                   # Разделитель = или :
             \s*                            # Любые пробелы
-            (["']?)                       # Открывающая кавычка значения (если есть)
-            (?P<value>[^"'\s,]+)          # Значение (без пробелов, кавычек, запятых)
-            (["']?)                       # Закрывающая кавычка значения (если есть)
+            (["']?)                        # Открывающая кавычка значения (если есть)
+            (?P<value>[^"'\s,]+)           # Значение (без пробелов, кавычек, запятых)
+            (["']?)                        # Закрывающая кавычка значения (если есть)
             """.format(
                 keys="|".join(map(re.escape, self.sensitive_fields.keys()))
             ),
@@ -52,6 +56,12 @@ class SensitiveDataFilter(logging.Filter):
         original = record.getMessage()
 
         def _mask_value(match: re.Match) -> str:
+            """
+            Функция для маскировки значения по ключу и типу маскировки.
+
+            :param match: Объект Match, содержащий информацию о совпадении.
+            :return: Строка с маскированным значением.
+            """
             key = match.group("key")
             sep = match.group("sep")
             value = match.group("value")
@@ -94,7 +104,7 @@ class DryRunAdapter(logging.LoggerAdapter):
         super().__init__(logger, {})
         self.dry_run = dry_run
 
-    def process(self, msg: Any, kwargs: Dict[str, Any]) -> Any:
+    def process(self, msg: Any, kwargs: MutableMapping[str, Any]) -> Any:
         """
         Модифицирует kwargs, добавляя в extra ключ 'dry_run' со значением 'DRY' или 'LIVE'.
 
@@ -120,9 +130,9 @@ class LoggerInitializer:
       - Логгирование результата загрузки данных в хранилища
     """
 
-    REQUIRED_KEYS = ["pipeline_id", "config_version", "log_config"]
+    REQUIRED_KEYS = ["pipeline_id", "config_version", "log_config", "dry_run"]
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any]) -> None:
         """
         :param config: Словарь конфигурации, загруженный из base_config.yaml
         """
@@ -131,13 +141,13 @@ class LoggerInitializer:
 
         self.pipeline_id: str = config["pipeline_id"]
         self.dry_run: bool = config.get("dry_run", False)
-        self.log_config: Dict[str, Any] = config["log_config"]
+        self.log_config: dict[str, Any] = config["log_config"]
 
         self.date_str: str = datetime.now().strftime(
             self.log_config.get("variables", {}).get("date", "%Y-%m-%d")
         )
         self.hash_str: str = self._generate_hash()
-        self.loggers: Dict[str, logging.LoggerAdapter] = {}
+        self.loggers: dict[str, logging.LoggerAdapter] = {}
 
         # Базовый логгер для записи о загрузке конфигурации
         base_logger = logging.getLogger("ConfigLoader")
@@ -186,15 +196,15 @@ class LoggerInitializer:
         base_str = f"{self.pipeline_id}_{self.date_str}"
         return hashlib.sha1(base_str.encode()).hexdigest()[:8]
 
-    def init_logger(self, stage_name: str) -> Optional[logging.LoggerAdapter]:
+    def init_logger(self, stage_name: str) -> logging.LoggerAdapter | None:
         """
         Инициализирует и возвращает адаптированный логгер для указанной стадии.
 
         :param stage_name: Имя стадии (должно соответствовать ключу в log_config['stages']).
         :return: LoggerAdapter, либо None если стадия отключена.
         """
-        stages: Dict[str, Any] = self.log_config.get("stages", {})
-        stage_conf: Dict[str, Any] = stages.get(stage_name, {})
+        stages: dict[str, Any] = self.log_config.get("stages", {})
+        stage_conf: dict[str, Any] = stages.get(stage_name, {})
 
         if not stage_conf.get("enabled", False):
             return None
@@ -222,7 +232,7 @@ class LoggerInitializer:
         formatter = logging.Formatter(log_format)
 
         # Настраиваем файловый обработчик с ротацией, если включена
-        rotation_cfg: Dict[str, Any] = self.log_config.get("log_rotation", {})
+        rotation_cfg: dict[str, Any] = self.log_config.get("log_rotation", {})
         if rotation_cfg.get("enabled", False):
             when: str = rotation_cfg.get("when", "midnight")
             interval: int = rotation_cfg.get("interval", 1)
@@ -250,7 +260,7 @@ class LoggerInitializer:
         if self.log_config.get("sanitize_sensitive_data", False):
             raw_fields = self.log_config.get("sensitive_fields", {})
             if isinstance(raw_fields, dict):
-                sensitive_fields_map: Dict[str, str] = raw_fields
+                sensitive_fields_map: dict[str, str] = raw_fields
             else:
                 # Для обратной совместимости: если указали список, считаем, что все 'full'
                 sensitive_fields_map = {key: "full" for key in raw_fields}
@@ -274,8 +284,8 @@ class LoggerInitializer:
         logger: logging.LoggerAdapter,
         source_name: str,
         enabled: bool,
-        success: Optional[bool] = None,
-        error: Optional[Exception] = None,
+        success: bool | None = None,
+        error: Exception | None = None,
         tables_loaded: int = 0,
         rows_loaded: int = 0,
     ) -> None:
