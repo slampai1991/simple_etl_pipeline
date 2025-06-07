@@ -4,7 +4,8 @@ import logging
 import datetime
 import pprint as pp
 from analytics import analysis, visualization
-from src import extract, transform, load, utils
+from src import extract, transform, load
+from utils import generation, validation, profiling
 
 try:
     with open("config.yaml", "r", encoding="utf8") as f:
@@ -47,8 +48,8 @@ try:
 
     extractor = extract.DataExtractor(config=config)
     transformer = transform.DataTransformer(config=config)
-    validator = utils.DataValidator(validation_config=config["validation_config"])
-    profiler = utils.DataProfiler(profiling_config=config["profiling_config"])
+    validator = validation.DataValidator(validation_config=config["validation_config"])
+    profiler = profiling.DataProfiler(profiling_config=config["profiling_config"])
     loader = load.SQLiteLoader(load_config=config["load_config"]["sqlite"])
 
     raw_data = extractor.extract_sqlite(query='SELECT id, name, action, timestamp action_date FROM users u JOIN user_actions ua ON u.id = ua.user_id')
