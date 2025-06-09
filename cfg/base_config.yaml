@@ -57,19 +57,11 @@ log_config:
       log_file: "{date}_{pipeline_id}_{hash}_analytics.log"
 
 config_validation:
-
   required_fields:
     - pipeline_id
     - config_version
     - dry_run
     - log_config
-    - generation_config
-    - extraction_config
-    - transformation_config
-    - validation_config
-    - profiling_config
-    - loading_config
-    - analytics_config
 
   types:
     pipeline_id: str
@@ -85,7 +77,6 @@ config_validation:
     loading_config: dict
     analytics_config: dict
 
-  # --- log_config ---
   log_config:
     required_fields:
       - log_path
@@ -145,7 +136,6 @@ config_validation:
         log_dir: str
         log_file: str
 
-  # --- generation_config ---
   generation_config:
     required_fields:
       - sqlite
@@ -264,7 +254,6 @@ config_validation:
         keys_type: str
         values_type: list
 
-  # --- extraction_config ---
   extraction_config:
     required_fields:
       - api
@@ -320,7 +309,6 @@ config_validation:
         tables: list
         enabled: bool
 
-  # --- transformation_config ---
   transformation_config:
     required_fields:
       - enabled
@@ -343,7 +331,6 @@ config_validation:
     operation_order:
       list_of_str: true
 
-  # --- validation_config ---
   validation_config:
     required_fields:
       - enabled
@@ -372,7 +359,6 @@ config_validation:
       values_type: list
       list_values_type: str
 
-  # --- profiling_config ---
   profiling_config:
     required_fields:
       - enabled
@@ -393,7 +379,6 @@ config_validation:
       exclude_columns: list
       stats: list
 
-  # --- loading_config ---
   loading_config:
     required_fields:
       - sqlite
@@ -466,7 +451,6 @@ config_validation:
         batch_size: int
         table_mappings: dict
 
-  # --- analytics_config ---
   analytics_config:
     required_fields:
       - predefined_queries

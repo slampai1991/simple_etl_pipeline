@@ -136,7 +136,6 @@ class LoggerInitializer:
         :param config: Словарь конфигурации, загруженный из base_config.yaml
         """
         self.config = config
-        self.validate_config()
 
         self.pipeline_id: str = config["pipeline_id"]
         self.dry_run: bool = config.get("dry_run", False)
@@ -162,30 +161,6 @@ class LoggerInitializer:
             f"config_version={config['config_version']}"
         )
 
-    def validate_config(self) -> None:
-        """
-        Проверяет наличие обязательных ключей в основной конфигурации.
-
-        :raises KeyError: Если отсутствуют один или несколько необходимых ключей.
-        """
-        missing_keys = [key for key in self.REQUIRED_KEYS if key not in self.config]
-        if missing_keys:
-            raise KeyError(
-                f"Отсутствуют обязательные ключи в конфигурации: {missing_keys}"
-            )
-
-        if (
-            not isinstance(self.config["pipeline_id"], str)
-            or not self.config["pipeline_id"].strip()
-        ):
-            raise ValueError("pipeline_id должен быть непустой строкой")
-
-        if (
-            not isinstance(self.config["config_version"], str)
-            or not self.config["config_version"].strip()
-        ):
-            raise ValueError("config_version должен быть непустой строкой")
-
     def _generate_hash(self) -> str:
         """
         Генерирует короткий SHA1-хэш на основе pipeline_id и текущей даты.
@@ -199,7 +174,7 @@ class LoggerInitializer:
         """
         Инициализирует и возвращает адаптированный логгер для указанной стадии.
 
-        :param stage_name: Имя стадии (должно соответствовать ключу в log_config['stages']).
+        :param stage_name (str): Имя стадии (должно соответствовать ключу в log_config['stages']).
         :return: LoggerAdapter, либо None если стадия отключена.
         """
         stages: dict[str, Any] = self.log_config.get("stages", {})

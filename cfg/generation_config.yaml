@@ -274,7 +274,6 @@ anomaly_config:
   probability: 0.1
   strategies:
     TEXT: ["", null, "!!!", "123", "\x00"]
-    INTEGER: [null, -999, "NaN", 9999999999]
-    REAL: [null, -1.234, "abc", 99999999.9]
+    INTEGER: [null, -999, "NaN", 9999999]
+    REAL: [null, -1.234, "abc", 999999.9]
     DATE: ["not-a-date", "31-31-2020", null, "2050-01-01"]
-
