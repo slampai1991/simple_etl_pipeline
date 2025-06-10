@@ -56,11 +56,12 @@ class SQLiteGenerator(DataGenerator):
         super().__init__(gen_config["sqlite"])
 
     @staticmethod
-    def _get_ids(cursor: sqlite3.Cursor):
+    def _get_ids(cursor: sqlite3.Cursor) -> list[str]:
         """
         Вспомогательная функция для извлечения user_id из таблицы.
         Понадобится для осуществления constraints
         """
+        cursor.execute("SELECT user_id FROM users")
         user_ids = [row[0] for row in cursor.fetchall()]
         return user_ids
 
@@ -165,8 +166,7 @@ class SQLiteGenerator(DataGenerator):
                     data.append((None, severity, message, timestamp))
 
             case "transactions":
-                cursor.execute("SELECT id FROM users")
-                user_ids = [row[0] for row in cursor.fetchall()]
+                user_ids = self._get_ids(cursor)
                 unique = set()
 
                 for _ in range(num_rows):
@@ -192,8 +192,7 @@ class SQLiteGenerator(DataGenerator):
                     data.append((uid, amount, ts, description, status))
 
             case "user_actions":
-                cursor.execute("SELECT id FROM users")
-                user_ids = [row[0] for row in cursor.fetchall()]
+                user_ids = self._get_ids(cursor)
                 unique = set()
 
                 for _ in range(num_rows):
@@ -253,7 +252,7 @@ class SQLiteGenerator(DataGenerator):
         Параметры генерации указаны в yaml файле.
 
         Args:
-            db_name (str): Имя БД SQLite. По умолчанию 'synthetic_sqlite_db'
+            db_name (str): Имя БД SQLite.
         """
 
         conn = None

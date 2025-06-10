@@ -44,7 +44,7 @@ class ConfigLoader:
         """
         Инициализация загрузчика конфигураций.
         Загружает базовую конфигурацию при создании объекта.
-        
+
         Args:
             cfg_root (str): Путь к директории с конфигурационными файлами.
             base_config_name (str): Имя базового файла конфигурации.
@@ -146,7 +146,7 @@ class ConfigLoader:
         """
         if not schema:
             schema = self.validation_schema
-        
+
         if not config:
             config = {}
 
