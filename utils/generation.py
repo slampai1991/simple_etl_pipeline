@@ -128,7 +128,9 @@ class SQLiteGenerator(DataGenerator):
                     data.append((None, name, age, phone, email, country, reg_date))
 
             case "products":
-                product_names = self._get_product_names(num_rows, sqlite_cfg=sqlite_cfg)
+                product_names = self._get_product_names(
+                    num_rows, cfg=self.cfg["word_lists"]
+                )
                 for _ in range(num_rows):
                     name = self._inject_anomaly(product_names.pop(), "TEXT")
                     category = self._inject_anomaly(
@@ -245,7 +247,7 @@ class SQLiteGenerator(DataGenerator):
 
         return data
 
-    def generate_db(self, db_name: str | None) -> None:
+    def generate_db(self, db_name: str | None = None) -> None:
         """
         Метод генерации синтетических данных для SQLite DB.
         Параметры генерации указаны в yaml файле.
@@ -267,7 +269,7 @@ class SQLiteGenerator(DataGenerator):
             if db_name is None:
                 db_name = self.cfg["sqlite_config"]["db_name"]
                 logger.info(
-                    f"Не передано название БД - db_name.\nБудет использовано значение по умолчанию - {sqlite_cfg['db_name']}"
+                    f"Не передано название БД - db_name.\nБудет использовано значение по умолчанию - {self.cfg['db_name']}"
                 )
 
             db_path = os.path.join(path, str(db_name))
@@ -296,7 +298,7 @@ class SQLiteGenerator(DataGenerator):
                 table_name = table["name"]
                 num_rows = table["num_rows"]
                 logger.info(f"Генерация {num_rows} строк для таблицы '{table_name}'.")
-                data = _generate_data(table_name, num_rows, cursor)
+                data = self._generate_data(table_name, num_rows, cursor)
                 logger.info(f"Генерация данных для таблицы '{table_name}' завершена.")
 
                 logger.info(f"Вставка данных в таблицу '{table_name}'...")
