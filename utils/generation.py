@@ -85,7 +85,7 @@ class DataGenerator:
         Вспомогательная функция для извлечения user_id из таблицы.
         Понадобится для осуществления constraints
         """
-        cursor.execute("SELECT user_id FROM users")
+        cursor.execute("SELECT id FROM users")
         user_ids = [row[0] for row in cursor.fetchall()]
         return user_ids
 
@@ -95,7 +95,7 @@ class DataGenerator:
         Вспомогательная функция для извлечения product_id из таблицы.
         Понадобится для осуществления constraints
         """
-        cursor.execute("SELECT product_id FROM products")
+        cursor.execute("SELECT id FROM products")
         product_ids = [row[0] for row in cursor.fetchall()]
         return product_ids
 
@@ -184,7 +184,7 @@ class SQLiteGenerator(DataGenerator):
         logger.info("Генерация данных для таблицы logs...")
 
         data = []
-        severities = self.word_lists["log_messages"].keys()
+        severities = list(self.word_lists["log_messages"].keys())
         log_messages = self.word_lists["log_messages"]
 
         for _ in range(num_rows):
@@ -345,9 +345,10 @@ class SQLiteGenerator(DataGenerator):
 
         logger.info(f"Таблица {table_name} успешно заполнена!")
 
-    def generate_db(self, db_name: str = "", db_path: str = "") -> None:
+    def create_db(self, db_name: str = "", db_path: str = "") -> None:
         """
-        Общий метод генерации БД и заполнения таблиц.
+        Создаёт базу данных SQLite с таблицами согласно конфигурации,
+        генерирует синтетические данные и заполняет ими таблицы.
 
         Args:
             db_name (str): Имя БД SQLite.
@@ -366,10 +367,68 @@ class SQLiteGenerator(DataGenerator):
 
         full_path = os.path.join(db_path, db_name)
 
-        conn = sqlite3.connect(full_path)
+        with sqlite3.connect(full_path) as conn:
+            logger.info(f"Создана БД SQLite `{db_name}`. Приступаю к созданию таблиц.")
 
-        for table in self.cfg
+            cursor = conn.cursor()
 
+            for table in self.cfg["tables"]:
+                table_name = table["name"]
+                columns = table["columns"]
+                constraints = table.get("constraints", [])
+                num_rows = table.get("num_rows", 1000)
+
+                try:
+                    logger.info(f"Создаю таблицу {table_name}...")
+
+                    columns_str = ", ".join(
+                        [
+                            f"{col['name']} {col['type']} {col.get('options', '')}"
+                            for col in columns
+                        ]
+                    )
+                    constraints_str = ", ".join(constraints)
+
+                    query = f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        {columns_str}
+                        {',' + constraints_str if constraints_str else ''}
+                    )
+                    """
+                    cursor.execute(query)
+
+                    logger.info(f"Таблица {table_name} успешно создана!")
+                    logger.info("Приступаю к заполненю таблицы данными!")
+
+                    method_name = getattr(self, f"_generate_{table_name}", None)
+                    if callable(method_name):
+                        if method_name in [
+                            self._generate_transactions,
+                            self._generate_user_actions,
+                        ]:
+                            user_ids = self._get_ids(cursor=cursor)
+                            data = method_name(num_rows=num_rows, user_ids=user_ids)
+                        elif method_name in [self._generate_orders]:
+                            product_ids = self._get_product_ids(cursor=cursor)
+                            data = method_name(num_rows=num_rows, product_ids=product_ids)
+                        else:
+                            data = method_name(num_rows)
+
+                        if not isinstance(data, list) or not all(
+                            isinstance(row, tuple) for row in data
+                        ):
+                            raise TypeError(
+                                f"_generate_{table_name} должен возвращать list[tuple[Any]], а не {type(data)}"
+                            )
+
+                        self.populate_table(table_name, data, cursor)
+
+                except sqlite3.Error as e:
+                    logger.error(f"Ошибка при создании таблицы {table_name}: {e}")
+
+            logger.info(
+                "Таблицы созданы! Приступаю к генерации данных и заполнению таблиц!"
+            )
 
 
 class CSVGenerator(DataGenerator):
@@ -383,27 +442,6 @@ class CSVGenerator(DataGenerator):
         Args:
             csv_name (str): Имя генерируемого CSV файла.
         """
-
-        def _inject_dirty_data(value, column_name: str):
-            """Вставляет грязные данные с некоторой вероятностью."""
-
-            if random.random() > 0.1:
-                return value
-
-            strategies = [
-                lambda: "",  # Пустое значение
-                lambda: "###ERROR###",  # Ошибочное значение
-                lambda: str(value) * 10,  # Аномально длинное значение
-                lambda: None,  # None как ошибка
-            ]
-
-            if column_name in ["age", "salary"]:
-                strategies.append(
-                    lambda: -random.randint(1, 100)
-                )  # Отрицательное число
-
-            return random.choice(strategies)()
-
         try:
             logger.info("Генерация данных и запись в CSV файл.")
             csv_path = os.path.join(self.cfg["data_destinations"]["csv"], csv_name)
@@ -442,7 +480,7 @@ class CSVGenerator(DataGenerator):
                     }
 
                     dirty_row = [
-                        _inject_dirty_data(raw_row[col], col) for col in headers
+                        self._inject_anomaly(raw_row[col], col) for col in headers
                     ]
                     writer.writerow(dirty_row)
 
