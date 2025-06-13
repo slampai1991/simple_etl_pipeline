@@ -66,9 +66,14 @@ class DataGenerator:
 
         Returns:
             set: Множество уникальных названий товаров.
+        Raises:
+            ValueError: если в аргументы передан хотя бы один пустой список 
         """
         logger.info("Генерация уникальных названий товаров...")
         product_names = set()  # set для контроля уникальности названий
+
+        if not all([products, models, colors]):
+            raise ValueError("Списки products/models/colors не определены или пусты")
 
         while len(product_names) < num_rows:
             product_name = f"{random.choice(colors)} {random.choice(products)} {random.choice(models)}"
@@ -152,9 +157,9 @@ class SQLiteGenerator(DataGenerator):
         data = []
         product_names = self._get_product_names(
             num_rows,
-            products=self.word_lists.get("products", {}),
-            models=self.word_lists.get("models", {}),
-            colors=self.word_lists.get("colors", {}),
+            products=self.word_lists.get("products", []),
+            models=self.word_lists.get("models", []),
+            colors=self.word_lists.get("colors", []),
         )
 
         for _ in range(num_rows):
@@ -371,12 +376,16 @@ class SQLiteGenerator(DataGenerator):
             logger.info(f"Создана БД SQLite `{db_name}`. Приступаю к созданию таблиц.")
 
             cursor = conn.cursor()
+            table_names = []
+            count = 0
 
             for table in self.cfg["tables"]:
                 table_name = table["name"]
                 columns = table["columns"]
                 constraints = table.get("constraints", [])
                 num_rows = table.get("num_rows", 1000)
+
+                table_names.append(table_name)
 
                 try:
                     logger.info(f"Создаю таблицу {table_name}...")
@@ -398,19 +407,22 @@ class SQLiteGenerator(DataGenerator):
                     cursor.execute(query)
 
                     logger.info(f"Таблица {table_name} успешно создана!")
+                    count += 1
                     logger.info("Приступаю к заполненю таблицы данными!")
 
                     method_name = getattr(self, f"_generate_{table_name}", None)
                     if callable(method_name):
-                        if method_name in [
-                            self._generate_transactions,
-                            self._generate_user_actions,
-                        ]:
+                        if table_name in ["transactions", "user_actions"]:
                             user_ids = self._get_ids(cursor=cursor)
                             data = method_name(num_rows=num_rows, user_ids=user_ids)
-                        elif method_name in [self._generate_orders]:
+                        elif table_name in ["orders"]:
+                            user_ids = self._get_ids(cursor=cursor)
                             product_ids = self._get_product_ids(cursor=cursor)
-                            data = method_name(num_rows=num_rows, product_ids=product_ids)
+                            data = method_name(
+                                num_rows=num_rows,
+                                user_ids=user_ids,
+                                product_ids=product_ids,
+                            )
                         else:
                             data = method_name(num_rows)
 
@@ -427,7 +439,9 @@ class SQLiteGenerator(DataGenerator):
                     logger.error(f"Ошибка при создании таблицы {table_name}: {e}")
 
             logger.info(
-                "Таблицы созданы! Приступаю к генерации данных и заполнению таблиц!"
+                f"База данных '{db_name}' успешно создана.\n"
+                f"Сформировано {count} таблиц: {', '.join(table_names)}.\n"
+                f"Все таблицы успешно заполнены данными."
             )
 
 
