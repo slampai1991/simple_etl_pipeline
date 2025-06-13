@@ -1,164 +1,133 @@
 import logging
 import os
 import sqlite3
-import csv
-from typing import Any
-import sqlparse
-from sqlparse.sql import Identifier, IdentifierList
-from sqlparse.tokens import Keyword
-
+from typing import Any, List, Dict
+import pandas as pd  # предполагаем использование для CSV/API/Mongo
 
 logger = logging.getLogger(__name__)
 
 
 class DataExtractor:
     """
-    Класс содержащий методы извлечения данных.
-    Пока реализованы только два метода: sqlite и csv экстракторы.
+    Базовый класс для извлечения данных.
+    Предусматривает поддержку нескольких источников: SQLite, CSV, MongoDB, API.
     """
 
-    def __init__(self, config: dict):
-        self.cfg = config
+    def __init__(self, load_cfg: dict):
+        self.cfg = load_cfg
 
-    def extract_csv(self, file_path: str) -> list:
+    def extract(self, source: str) -> dict[str, pd.DataFrame]:
         """
-        Извлекает данные из CSV файла.
+        Универсальный метод извлечения данных из заданного источника.
 
         Args:
-            file_path (str): Расположение CSV-файла.
+            source (str): источник ('sqlite', 'csv', 'mongodb', 'api')
 
         Returns:
-            list: Список строк из CSV файла.
-
-        Raises:
-            Exception: При ошибке чтения файла.
+            dict[str, pd.DataFrame]: таблицы и соответствующие датафреймы
         """
-        try:
-            logger.info(f"Извлечение данных из файла '{file_path}'...")
-
-            with open(file_path, "r", newline="", encoding="utf-8") as csvfile:
-                reader = csv.reader(csvfile, delimiter=",")
-                # Проверяем, что первая строка - заголовки.
-                # Так как по умолчанию проект работает с config-файлом,
-                # я не буду пытаться реализовать какую-то универсальную логику.
-                headers = next(reader)
-                if headers == self.cfg["csv_config"]["headers"]:
-                    data = list(reader)
-                else:
-                    data = [headers] + list(reader)
-
-            logger.info(f"Данные успешно извлечены из файла '{file_path}'.")
-            return data
-
-        except Exception as e:
-            logger.error(f"Ошибка при извлечении данных из CSV: {e}")
-            raise
-
-    def extract_sqlite(
-        self,
-        db_path: str | None = None,
-        table_name: str | None = None,
-        query: str | None = None,
-        query_name: str | None = None,
-        result_alias: str | None = None,
-    ) -> dict[str, dict[str, list[str] | list[tuple[Any, ...]]]]:
-        """
-        Извлекает данные из SQLite базы данных.
-
-        Метод поддерживает:
-        - Пользовательский SQL-запрос с указанием `query` и необязательным `result_alias`.
-        - Извлечение конкретной таблицы по `table_name`.
-        - Извлечение всех таблиц, если ни `query`, ни `table_name` не указаны.
-
-        Args:
-            db_path (Optional[str]): Путь к файлу SQLite БД. Если None, берётся из конфига.
-            table_name (Optional[str]): Имя таблицы для выборки. Если указано, возвращает только её данные.
-            query (Optional[str]): Произвольный SQL-запрос для выполнения. Если указан, игнорирует `table_name`.
-            result_alias (Optional[str]): Псевдоним для результатов произвольного запроса.
-                Если не указан вместе с `query`, используется "result".
-
-        Returns:
-            Dict[str, Tuple[List[str], List[Tuple]]]:
-                Словарь, где ключ — имя результата (имя таблицы или псевдоним),
-                значение — кортеж из списка столбцов и списка строк с данными.
-
-        Raises:
-            sqlite3.Error: При ошибках подключения или выполнения SQL-запроса.
-        """
-
-        def _extract_tables(sql: str) -> list[str]:
-            """
-            Простая функция извлечения имён таблиц из SQL-запроса.
-            Ищет токены после ключевых слов WITH, FROM и JOIN.
-            """
-            parsed = sqlparse.parse(sql)
-            tables = set()
-            for stmt in parsed:
-                for token in stmt.tokens:
-                    if token.ttype is Keyword and token.value.upper() in (
-                        "FROM",
-                        "JOIN",
-                        "WITH"
-                    ):
-                        next_tok = stmt.token_next(
-                            stmt.token_index(token), skip_ws=True, skip_cm=True
-                        )
-                        if isinstance(next_tok, IdentifierList):
-                            for identifier in next_tok.get_identifiers():
-                                tables.add(identifier.get_name())
-                        elif isinstance(next_tok, Identifier):
-                            tables.add(next_tok.get_name())
-                        elif next_tok:
-                            tables.add(str(next_tok))
-            return list(tables)
-
-        if not db_path:
-            db_path = os.path.join(
-                self.cfg["sqlite_config"]["db_path"],
-                self.cfg["sqlite_config"]["db_name"],
+        if source == "sqlite" and self.cfg.get("sqlite", {}).get("enabled"):
+            return SQLiteExtractor(self.cfg["sqlite"]).extract()
+        elif source == "csv" and self.cfg.get("csv", {}).get("enabled"):
+            return CSVExtractor(self.cfg["csv"]).extract()
+        elif source == "mongodb" and self.cfg.get("mongodb", {}).get("enabled"):
+            return MongoExtractor(self.cfg["mongodb"]).extract()
+        elif source == "api" and self.cfg.get("api", {}).get("enabled"):
+            return APIExtractor(self.cfg["api"]).extract()
+        else:
+            logger.warning(
+                f"Источник данных '{source}' не поддерживается или отключён."
             )
+            return {}
 
-        results = {}
 
-        try:
-            with sqlite3.connect(str(db_path)) as conn:
-                cursor = conn.cursor()
+class SQLiteExtractor(DataExtractor):
+    def __init__(self, sqlite_cfg: dict):
+        super().__init__(sqlite_cfg)
+        self.db_name = sqlite_cfg.get("db_name")
+        self.db_path = sqlite_cfg.get("db_path")
+        self.tables = sqlite_cfg.get("tables", [])
 
-                # Если запрос указан
-                if query:
-                    alias = result_alias or query_name or "result"
-                    cursor.execute(query)
-                    cols = [d[0] for d in cursor.description]
-                    rows = cursor.fetchall()
-                    tables = _extract_tables(query)
-                    results[alias] = {"columns": cols, "rows": rows, "tables": tables}
-                    return results
+    def set_db_name(self, db_name: str):
+        self.db_name = db_name
 
-                # Если указана одна таблица
-                if table_name:
-                    select = f"SELECT * FROM {table_name}"  # безопаснее через parameters, но для таблиц ок
-                    cursor.execute(select)
-                    cols = [d[0] for d in cursor.description]
-                    rows = cursor.fetchall()
-                    results[table_name] = {
-                        "columns": cols,
-                        "rows": rows,
-                        "tables": [table_name],
-                    }
-                    return results
+    def set_db_path(self, db_path: str):
+        self.db_path = db_path
 
-                # Базовый сценарий: все таблицы
-                cursor.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
-                )
-                tables_list = [r[0] for r in cursor.fetchall()]
-                for tbl in tables_list:
-                    cursor.execute(f"SELECT * FROM {tbl}")
-                    cols = [d[0] for d in cursor.description]
-                    rows = cursor.fetchall()
-                    results[tbl] = {"columns": cols, "rows": rows, "tables": [tbl]}
-                return results
+    def get_full_path(self) -> str:
+        if not self.db_name or not self.db_path:
+            raise ValueError("Необходимо указать и путь, и имя базы данных.")
+        return os.path.join(self.db_path, self.db_name)
 
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при извлечении: {e}")
-            raise
+    def extract(self) -> dict[str, pd.DataFrame]:
+        """
+        Извлекает данные из SQLite БД и возвращает как словарь таблиц.
+
+        Returns:
+            dict[str, pd.DataFrame]: Табличные данные в формате {table_name: DataFrame}
+        """
+        full_path = self.get_full_path()
+
+        if not os.path.exists(full_path):
+            raise FileNotFoundError(f"База данных по пути '{full_path}' не найдена.")
+
+        logger.info(f"Извлечение данных из SQLite по пути: {full_path}")
+        result = {}
+
+        with sqlite3.connect(full_path) as conn:
+            for table in self.tables:
+                try:
+                    df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+                    result[table] = df
+                    logger.info(f"Таблица '{table}' извлечена. {len(df)} строк.")
+                except Exception as e:
+                    logger.warning(f"Ошибка извлечения таблицы '{table}': {e}")
+
+        return result
+
+
+class CSVExtractor(DataExtractor):
+    def __init__(self, csv_cfg: dict):
+        super().__init__(csv_cfg)
+        self.directory = csv_cfg.get("directory", "")
+
+    def extract(self) -> dict[str, pd.DataFrame]:
+        logger.info(f"Извлечение данных из CSV-файлов в {self.directory}")
+        result = {}
+        if not os.path.exists(self.directory):
+            raise FileNotFoundError(f"Каталог CSV не найден: {self.directory}")
+
+        for fname in os.listdir(self.directory):
+            if fname.endswith(".csv"):
+                path = os.path.join(self.directory, fname)
+                try:
+                    df = pd.read_csv(path)
+                    table_name = os.path.splitext(fname)[0]
+                    result[table_name] = df
+                    logger.info(f"CSV '{fname}' загружен. {len(df)} строк.")
+                except Exception as e:
+                    logger.warning(f"Ошибка чтения файла '{fname}': {e}")
+        return result
+
+
+class MongoExtractor(DataExtractor):
+    def __init__(self, mongo_cfg: dict):
+        super().__init__(mongo_cfg)
+        # from pymongo import MongoClient
+        # self.client = MongoClient(mongo_cfg["uri"])
+        # self.db = self.client[mongo_cfg["database"]]
+
+    def extract(self) -> dict[str, pd.DataFrame]:
+        logger.info("MongoDB извлечение пока не реализовано.")
+        return {}
+
+
+class APIExtractor(DataExtractor):
+    def __init__(self, api_cfg: dict):
+        super().__init__(api_cfg)
+        self.base_url = api_cfg.get("base_url")
+        self.endpoints = api_cfg.get("endpoints", [])
+
+    def extract(self) -> dict[str, pd.DataFrame]:
+        logger.info("API извлечение пока не реализовано.")
+        return {}

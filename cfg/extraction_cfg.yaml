@@ -6,19 +6,19 @@ api:
     headers:
       Accept: "application/json"
     format: json
-    enabled: true
+    enabled: false
 
-csv_sources:
+csv:
   - name: employees
     path: "data/employees_synth_data.csv"
     delimiter: ","
     encoding: "utf-8"
     header: true
-    enabled: true
+    enabled: false
 
-sqlite_sources:
-  - name: synthetic_db
-    path: "data/synth_sqlite_database.db"
+sqlite:
+  - name: 
+    path: 
     tables:
       - users
       - products
