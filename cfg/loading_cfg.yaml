@@ -3,7 +3,7 @@ sqlite:
   db_name: "result_sqlite_database.db"
   db_path: "db/"
   if_exists: "replace"
-  timeout: 30 # seconds
+  timeout: 30 # секунды
   log: true
 
 clickhouse:

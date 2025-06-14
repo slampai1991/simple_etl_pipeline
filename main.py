@@ -4,7 +4,7 @@ from utils import generation
 from src import extract
 
 with open("cfg/extraction_cfg.yaml", "r", encoding="utf8") as f:
-    cfg = yaml.safe_load(f)
+    ext_cfg = yaml.safe_load(f)
 
 logging.basicConfig(
     level=logging.INFO,

@@ -1,0 +1,591 @@
+# Общая схема валидации конфигураций ETL-пайплайна
+# Файл: cfg/schema/cfg_validation_schema.yaml
+
+definitions:
+  NonEmptyString:
+    type: string
+    minLength: 1
+  EnabledFlag:
+    type: boolean
+  PathStr:
+    type: string
+    minLength: 1
+  ListOfStr:
+    type: array
+    items:
+      $ref: "#/definitions/NonEmptyString"
+  DictStrStr:
+    type: object
+    additionalProperties:
+      $ref: "#/definitions/NonEmptyString"
+  ListOfDicts:
+    type: array
+    items:
+      type: object
+  CommonDict:
+    type: object
+    additionalProperties: true
+
+base_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - pipeline_id
+    - config_version
+    - dry_run
+    - log_config
+  properties:
+    pipeline_id:
+      $ref: "#/definitions/NonEmptyString"
+    config_version:
+      $ref: "#/definitions/NonEmptyString"
+    dry_run:
+      $ref: "#/definitions/EnabledFlag"
+    log_config:
+      type: object
+      additionalProperties: false
+      required:
+        - log_path
+        - log_level
+        - log_format
+        - log_to_console
+        - sanitize_sensitive_data
+        - sensitive_fields
+        - log_rotation
+        - variables
+        - stages
+      properties:
+        log_path:
+          $ref: "#/definitions/PathStr"
+        log_level:
+          type: string
+          enum:
+            - DEBUG
+            - INFO
+            - WARNING
+            - ERROR
+            - CRITICAL
+        log_format:
+          $ref: "#/definitions/NonEmptyString"
+        log_to_console:
+          $ref: "#/definitions/EnabledFlag"
+        sanitize_sensitive_data:
+          $ref: "#/definitions/EnabledFlag"
+        sensitive_fields:
+          type: object
+          additionalProperties:
+            type: string
+            enum:
+              - none
+              - partial
+              - full
+        log_rotation:
+          type: object
+          additionalProperties: false
+          required:
+            - enabled
+            - when
+            - interval
+            - backup_count
+          properties:
+            enabled:
+              $ref: "#/definitions/EnabledFlag"
+            when:
+              $ref: "#/definitions/NonEmptyString"
+            interval:
+              type: integer
+              minimum: 1
+            backup_count:
+              type: integer
+              minimum: 0
+        variables:
+          type: object
+          additionalProperties:
+            $ref: "#/definitions/NonEmptyString"
+        stages:
+          type: object
+          additionalProperties: false
+          patternProperties:
+            "^.*$":
+              type: object
+              additionalProperties: false
+              required:
+                - enabled
+                - log_dir
+                - log_file
+              properties:
+                enabled:
+                  $ref: "#/definitions/EnabledFlag"
+                log_dir:
+                  $ref: "#/definitions/PathStr"
+                log_file:
+                  $ref: "#/definitions/NonEmptyString"
+
+generation_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - sqlite
+    - csv
+    - mongo_config
+    - anomaly_config
+  properties:
+    sqlite:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - db_name
+        - db_path
+        - tables
+        - word_lists
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        db_name:
+          $ref: "#/definitions/NonEmptyString"
+        db_path:
+          $ref: "#/definitions/PathStr"
+        tables:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - name
+              - rows
+              - columns
+            properties:
+              name:
+                $ref: "#/definitions/NonEmptyString"
+              rows:
+                type: integer
+                minimum: 0
+              columns:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - name
+                    - type
+                  properties:
+                    name:
+                      $ref: "#/definitions/NonEmptyString"
+                    type:
+                      $ref: "#/definitions/NonEmptyString"
+                    options:
+                      $ref: "#/definitions/NonEmptyString"
+              constraints:
+                type: array
+                items:
+                  $ref: "#/definitions/NonEmptyString"
+        word_lists:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: "#/definitions/NonEmptyString"
+    csv:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - output
+        - rows
+        - schema
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        output:
+          type: object
+          additionalProperties: false
+          required:
+            - path
+            - filename
+            - delimiter
+            - quotechar
+            - encoding
+          properties:
+            path:
+              $ref: "#/definitions/PathStr"
+            filename:
+              $ref: "#/definitions/NonEmptyString"
+            delimiter:
+              $ref: "#/definitions/NonEmptyString"
+            quotechar:
+              $ref: "#/definitions/NonEmptyString"
+            encoding:
+              $ref: "#/definitions/NonEmptyString"
+        rows:
+          type: integer
+          minimum: 0
+        schema:
+          type: object
+          additionalProperties: false
+          required:
+            - headers
+          properties:
+            headers:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - name
+                  - type
+                properties:
+                  name:
+                    $ref: "#/definitions/NonEmptyString"
+                  type:
+                    $ref: "#/definitions/NonEmptyString"
+    mongo_config:
+      type: object
+      additionalProperties: false
+      required:
+        - uri
+        - db_name
+        - collections
+      properties:
+        uri:
+          $ref: "#/definitions/NonEmptyString"
+        db_name:
+          $ref: "#/definitions/NonEmptyString"
+        collections:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - name
+              - num_docs
+              - schema
+            properties:
+              name:
+                $ref: "#/definitions/NonEmptyString"
+              num_docs:
+                type: integer
+                minimum: 0
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/definitions/NonEmptyString"
+    anomaly_config:
+      type: object
+      additionalProperties: false
+      required:
+        - probability
+        - strategies
+      properties:
+        probability:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        strategies:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              - type: string
+              - type: number
+              - type: "null"
+
+extraction_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - api
+    - csv
+    - sqlite
+  properties:
+    api:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        patternProperties:
+          "^[a-zA-Z_][a-zA-Z0-9_]*$":
+            type: object
+            additionalProperties: false
+            required:
+              - enabled
+              - url
+              - method
+              - params
+              - headers
+              - format
+            properties:
+              enabled:
+                $ref: "#/definitions/EnabledFlag"
+              url:
+                $ref: "#/definitions/NonEmptyString"
+              method:
+                $ref: "#/definitions/NonEmptyString"
+              params:
+                type: object
+              headers:
+                type: object
+              format:
+                $ref: "#/definitions/NonEmptyString"
+    csv:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - name
+        - path
+        - delimiter
+        - encoding
+        - header
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        name:
+          $ref: "#/definitions/NonEmptyString"
+        path:
+          $ref: "#/definitions/PathStr"
+        delimiter:
+          $ref: "#/definitions/NonEmptyString"
+        encoding:
+          $ref: "#/definitions/NonEmptyString"
+        header:
+          $ref: "#/definitions/EnabledFlag"
+    sqlite:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - name
+        - path
+        - tables
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        name:
+          $ref: "#/definitions/NonEmptyString"
+        path:
+          $ref: "#/definitions/PathStr"
+        tables:
+          type: array
+          items:
+            $ref: "#/definitions/NonEmptyString"
+
+transformation_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - enabled
+    - operations
+    - operation_order
+  properties:
+    enabled:
+      $ref: "#/definitions/EnabledFlag"
+    operations:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        "^[a-zA-Z_][a-zA-Z0-9_]*$":
+          type: object
+          additionalProperties: false
+          required:
+            - enabled
+          properties:
+            enabled:
+              $ref: "#/definitions/EnabledFlag"
+    operation_order:
+      $ref: "#/definitions/ListOfStr"
+
+validation_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - enabled
+    - foreign_keys
+    - composite_keys
+    - constraints
+  properties:
+    enabled:
+      $ref: "#/definitions/EnabledFlag"
+    foreign_keys:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties:
+          $ref: "#/definitions/NonEmptyString"
+    composite_keys:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: array
+          items:
+            $ref: "#/definitions/NonEmptyString"
+    constraints:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          $ref: "#/definitions/NonEmptyString"
+
+profiling_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - enabled
+    - reports_path
+    - format
+    - detailed
+    - group_by
+    - include_columns
+    - exclude_columns
+    - stats
+  properties:
+    enabled:
+      $ref: "#/definitions/EnabledFlag"
+    reports_path:
+      $ref: "#/definitions/PathStr"
+    format:
+      type: array
+      items:
+        $ref: "#/definitions/NonEmptyString"
+    detailed:
+      $ref: "#/definitions/EnabledFlag"
+    group_by:
+      type: array
+      items:
+        $ref: "#/definitions/NonEmptyString"
+    include_columns:
+      type: array
+      items:
+        $ref: "#/definitions/NonEmptyString"
+    exclude_columns:
+      type: array
+      items:
+        $ref: "#/definitions/NonEmptyString"
+    stats:
+      type: array
+      items:
+        $ref: "#/definitions/NonEmptyString"
+
+loading_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - sqlite
+    - clickhouse
+    - postgres
+  properties:
+    sqlite:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - db_name
+        - db_path
+        - if_exists
+        - timeout
+        - log
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        db_name:
+          $ref: "#/definitions/NonEmptyString"
+        db_path:
+          $ref: "#/definitions/PathStr"
+        if_exists:
+          $ref: "#/definitions/NonEmptyString"
+        timeout:
+          type: integer
+          minimum: 0
+        log:
+          $ref: "#/definitions/EnabledFlag"
+    clickhouse:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - host
+        - port
+        - user
+        - password
+        - secure
+        - compression
+        - database
+        - table_mappings
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        host:
+          $ref: "#/definitions/NonEmptyString"
+        port:
+          type: integer
+          minimum: 0
+        user:
+          $ref: "#/definitions/NonEmptyString"
+        password:
+          $ref: "#/definitions/NonEmptyString"
+        secure:
+          $ref: "#/definitions/EnabledFlag"
+        compression:
+          $ref: "#/definitions/EnabledFlag"
+        database:
+          $ref: "#/definitions/NonEmptyString"
+        table_mappings:
+          type: object
+          additionalProperties:
+            $ref: "#/definitions/NonEmptyString"
+    postgres:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - host
+        - port
+        - user
+        - password
+        - database
+        - schema
+        - sslmode
+        - batch_size
+        - table_mappings
+      properties:
+        enabled:
+          $ref: "#/definitions/EnabledFlag"
+        host:
+          $ref: "#/definitions/NonEmptyString"
+        port:
+          type: integer
+          minimum: 0
+        user:
+          $ref: "#/definitions/NonEmptyString"
+        password:
+          $ref: "#/definitions/NonEmptyString"
+        database:
+          $ref: "#/definitions/NonEmptyString"
+        schema:
+          $ref: "#/definitions/NonEmptyString"
+        sslmode:
+          $ref: "#/definitions/NonEmptyString"
+        batch_size:
+          type: integer
+          minimum: 1
+        table_mappings:
+          type: object
+          additionalProperties:
+            $ref: "#/definitions/NonEmptyString"
+
+analytics_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - predefined_queries
+  properties:
+    predefined_queries:
+      type: object
+      additionalProperties:
+        type: object
+        additionalProperties:
+          $ref: "#/definitions/NonEmptyString"
