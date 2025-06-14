@@ -2,7 +2,7 @@ import csv
 import sqlite3
 import random
 import logging
-import os
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any
 import faker
@@ -350,7 +350,7 @@ class SQLiteGenerator(DataGenerator):
 
         logger.info(f"Таблица {table_name} успешно заполнена!")
 
-    def create_db(self, db_name: str = "", db_path: str = "") -> None:
+    def create_db(self, db_name: Any = "", db_path: Any = "") -> None:
         """
         Создаёт базу данных SQLite с таблицами согласно конфигурации,
         генерирует синтетические данные и заполняет ими таблицы.
@@ -358,21 +358,24 @@ class SQLiteGenerator(DataGenerator):
         Args:
             db_name (str): Имя БД SQLite.
         """
+
+        self.actual_db_name = db_name or self.cfg["db_name"]
+        self.actual_db_path = db_path or self.cfg["db_path"]
+
         if not db_name:
-            db_name = self.cfg["db_name"]
             logger.info(
-                f"Имя БД не указано. Будет использовано имя по умолчанию: {db_name}"
+                f"Имя БД не указано. Будет использовано имя по умолчанию: {self.actual_db_name}"
             )
 
         if not db_path:
-            db_path = self.cfg["db_path"]
             logger.info(
-                f"Путь для сохранения файла БД не указан. Будет использован путь по умолчанию {db_path}"
+                f"Путь для сохранения файла БД не указан. Будет использован путь по умолчанию {self.actual_db_path}"
             )
 
-        logger.info(f"Приступаю к созданию базы данных {db_name}")
+        db_path = Path(self.actual_db_path)
+        logger.info(f"Приступаю к созданию базы данных {self.actual_db_name}")
 
-        if not os.path.exists(db_path):
+        if not db_path.exists():
             os.mkdir(db_path)
             logger.info(f"Создана директория {db_path}")
 
