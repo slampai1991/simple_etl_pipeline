@@ -1,8 +1,9 @@
 import yaml
 import logging
 from utils import generation
+from src import extract
 
-with open("cfg/generation_cfg.yaml", "r", encoding="utf8") as f:
+with open("cfg/extraction_cfg.yaml", "r", encoding="utf8") as f:
     cfg = yaml.safe_load(f)
 
 logging.basicConfig(
@@ -14,5 +15,8 @@ logging.basicConfig(
 try:
     datagen = generation.SQLiteGenerator(gen_config=cfg)
     datagen.create_db()
+
+    # extractor = extract.DataExtractor(load_cfg=cfg)
+    # raw_data = extractor.extract(source='sqlite')
 except Exception as e:
-    logging.error(f"Ошибка при создании базы данных: {e}")
+    raise e

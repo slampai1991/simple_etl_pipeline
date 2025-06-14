@@ -1,29 +1,30 @@
 api:
+  enabled: false
   fakestore:
+    enabled: false
     url: "https://fakestoreapi.com/products"
     method: "GET"
     params: {}
     headers:
       Accept: "application/json"
     format: json
-    enabled: false
 
 csv:
-  - name: employees
-    path: "data/employees_synth_data.csv"
-    delimiter: ","
-    encoding: "utf-8"
-    header: true
-    enabled: false
+  enabled: false
+  name: employees
+  path: "data/employees_synth_data.csv"
+  delimiter: ","
+  encoding: "utf-8"
+  header: true
 
 sqlite:
-  - name: 
-    path: 
-    tables:
-      - users
-      - products
-      - logs
-      - transactions
-      - user_actions
-      - orders
-    enabled: true
+  enabled: true
+  name: "synth_sqlite_database.db"
+  path: "data/"
+  tables:
+    - users
+    - products
+    - logs
+    - transactions
+    - user_actions
+    - orders

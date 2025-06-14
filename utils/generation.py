@@ -67,7 +67,7 @@ class DataGenerator:
         Returns:
             set: Множество уникальных названий товаров.
         Raises:
-            ValueError: если в аргументы передан хотя бы один пустой список 
+            ValueError: если в аргументы передан хотя бы один пустой список
         """
         logger.info("Генерация уникальных названий товаров...")
         product_names = set()  # set для контроля уникальности названий
@@ -360,9 +360,15 @@ class SQLiteGenerator(DataGenerator):
         """
         if not db_name:
             db_name = self.cfg["db_name"]
+            logger.info(
+                f"Имя БД не указано. Будет использовано имя по умолчанию: {db_name}"
+            )
 
         if not db_path:
             db_path = self.cfg["db_path"]
+            logger.info(
+                f"Путь для сохранения файла БД не указан. Будет использован путь по умолчанию {db_path}"
+            )
 
         logger.info(f"Приступаю к созданию базы данных {db_name}")
 
@@ -439,7 +445,7 @@ class SQLiteGenerator(DataGenerator):
                     logger.error(f"Ошибка при создании таблицы {table_name}: {e}")
 
             logger.info(
-                f"База данных '{db_name}' успешно создана.\n"
+                f"База данных `{db_name}` успешно создана: {full_path}.\n"
                 f"Сформировано {count} таблиц: {', '.join(table_names)}.\n"
                 f"Все таблицы успешно заполнены данными."
             )

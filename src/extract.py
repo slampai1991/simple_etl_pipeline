@@ -1,8 +1,7 @@
 import logging
 import os
 import sqlite3
-from typing import Any, List, Dict
-import pandas as pd  # предполагаем использование для CSV/API/Mongo
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +27,16 @@ class DataExtractor:
         """
         if source == "sqlite" and self.cfg.get("sqlite", {}).get("enabled"):
             return SQLiteExtractor(self.cfg["sqlite"]).extract()
+
         elif source == "csv" and self.cfg.get("csv", {}).get("enabled"):
             return CSVExtractor(self.cfg["csv"]).extract()
+
         elif source == "mongodb" and self.cfg.get("mongodb", {}).get("enabled"):
             return MongoExtractor(self.cfg["mongodb"]).extract()
+
         elif source == "api" and self.cfg.get("api", {}).get("enabled"):
             return APIExtractor(self.cfg["api"]).extract()
+
         else:
             logger.warning(
                 f"Источник данных '{source}' не поддерживается или отключён."
@@ -59,7 +62,7 @@ class SQLiteExtractor(DataExtractor):
             raise ValueError("Необходимо указать и путь, и имя базы данных.")
         return os.path.join(self.db_path, self.db_name)
 
-    def extract(self) -> dict[str, pd.DataFrame]:
+    def extract(self, source: str = "") -> dict[str, pd.DataFrame]:
         """
         Извлекает данные из SQLite БД и возвращает как словарь таблиц.
 
