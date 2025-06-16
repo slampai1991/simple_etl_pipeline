@@ -1,6 +1,6 @@
 import yaml
 import logging
-from utils import generation
+from utils.generation import SQLiteGenerator
 from src import extract
 
 
@@ -11,6 +11,6 @@ logging.basicConfig(
 )
 
 try:
-    pass
+    datagen = SQLiteGenerator({})
 except Exception as e:
     raise e

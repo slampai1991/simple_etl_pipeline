@@ -1,3 +1,56 @@
+"""
+Генератор синтетических данных с возможностью внедрения аномалий для SQLite, CSV и MongoDB.
+
+Классы:
+-------
+1. DataGenerator:
+    Базовый класс генерации данных. Предоставляет методы загрязнения данных (_inject_anomaly)
+    и утилиты для генерации названий продуктов, извлечения ID из БД и др.
+
+2. SQLiteGenerator(DataGenerator):
+    Генератор, создающий SQLite-базу с таблицами, описанными в конфигурации.
+    Для каждой таблицы реализован метод генерации данных, в том числе с аномалиями.
+
+    Основные методы:
+    - _generate_users
+    - _generate_products
+    - _generate_logs
+    - _generate_transactions
+    - _generate_user_actions
+    - _generate_orders
+    - populate_table
+    - create_db
+
+3. CSVGenerator(DataGenerator):
+    Генератор, создающий CSV-файл с синтетическими данными по схеме, указанной в конфигурации.
+
+    Основной метод:
+    - generate_csv
+
+4. MongoGenerator(DataGenerator):
+    Заготовка под генерацию для MongoDB. Метод `generate()` пока не реализован.
+
+Особенности:
+------------
+- Поддержка загрязнения данных: вероятностная подмена значений, в том числе на None.
+- Поддержка зависимости между таблицами (внешние ключи), включая уникальность по составному ключу.
+- Конфигурируемая структура таблиц и типы данных.
+- Поддержка логирования на всех этапах.
+
+Использование:
+--------------
+Для запуска необходимо создать объект соответствующего класса (например, SQLiteGenerator)
+и вызвать метод `create_db()` или `generate_csv()`.
+
+Пример:
+--------
+    from utils.generation import SQLiteGenerator
+
+    config = {...}  # Загрузка конфигурации из yaml/json
+    sqlite_gen = SQLiteGenerator(config)
+    sqlite_gen.create_db()
+"""
+
 import csv
 import sqlite3
 import random
@@ -363,23 +416,23 @@ class SQLiteGenerator(DataGenerator):
         self.actual_db_path = db_path or self.cfg["db_path"]
 
         if not db_name:
+            db_name = self.cfg["db_name"]
             logger.info(
-                f"Имя БД не указано. Будет использовано имя по умолчанию: {self.actual_db_name}"
+                f"Имя БД не указано. Будет использовано имя по умолчанию: {db_name}"
             )
 
         if not db_path:
+            db_path = self.cfg["db_path"]
             logger.info(
-                f"Путь для сохранения файла БД не указан. Будет использован путь по умолчанию {self.actual_db_path}"
+                f"Путь для сохранения файла БД не указан. Будет использован путь по умолчанию {db_path}"
             )
 
-        db_path = Path(self.actual_db_path)
-        logger.info(f"Приступаю к созданию базы данных {self.actual_db_name}")
-
+        db_path = Path(db_path)
         if not db_path.exists():
-            os.mkdir(db_path)
+            db_path.mkdir(parents=True, exist_ok=True)
             logger.info(f"Создана директория {db_path}")
 
-        full_path = os.path.join(db_path, db_name)
+        full_path = db_path / db_name
 
         with sqlite3.connect(full_path) as conn:
             logger.info(f"Создана БД SQLite `{db_name}`. Приступаю к созданию таблиц.")
@@ -467,7 +520,7 @@ class CSVGenerator(DataGenerator):
         """
         try:
             logger.info("Генерация данных и запись в CSV файл.")
-            csv_path = os.path.join(self.cfg["data_destinations"]["csv"], csv_name)
+            csv_path = ""
 
             with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
                 writer = csv.writer(csvfile)

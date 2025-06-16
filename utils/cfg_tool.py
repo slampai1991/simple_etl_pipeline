@@ -1,5 +1,5 @@
 """
-config_tools.py
+cfg_tool.py
 
 Объединённый модуль CLI для загрузки и валидации конфигурационных файлов ETL-пайплайна.
 Содержит два класса:
@@ -7,8 +7,8 @@ config_tools.py
   - ConfigValidator: детальная валидация одного или группы файлов
 
 Пример использования:
-  python config_tools.py --file cfg/base_cfg.yaml
-  python config_tools.py --all
+  python cfg_tool.py --file cfg/base_cfg.yaml
+  python cfg_tool.py --all
 
 Опции:
   --file <path>        валидировать один файл
@@ -18,18 +18,18 @@ config_tools.py
 """
 
 import yaml
-import glob
 import argparse
 from pathlib import Path
-from jsonschema import Draft7Validator, RefResolver, ValidationError
+from jsonschema import Draft7Validator, ValidationError
+from referencing import Registry, Resource
 
 
 def load_schema(schema_path: Path) -> dict:
     """
     Загрузка полной JSON Schema из YAML-файла.
 
-    :param schema_path: Путь к файлу cfg_validation_schema.yaml
-    :return: Словарь с загруженной схемой
+    :param pathlib.Path `schema_path`: Путь к файлу cfg_validation_schema.yaml
+    :return dict: Словарь с загруженной схемой
     """
     with open(schema_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -38,40 +38,47 @@ def load_schema(schema_path: Path) -> dict:
 class ConfigLoader:
     """
     Класс для базовой загрузки и валидации конфигурации.
-    Использует jsonschema для проверки соответствия базовым правилам.
     """
 
     def __init__(self, schema: dict):
         """
-        :param schema: Словарь JSON Schema, загруженный из файла
+        :param dict `schema`: Словарь JSON Schema, загруженный из файла
         """
         self.schema = schema
-        # Резольвер для ссылок на definitions
-        self.resolver = RefResolver.from_schema(
-            {"definitions": schema.get("definitions", {})}
-        )
+        self.resource = Resource.from_contents(schema)
+        self.registry = Registry().with_resource("cfg://base", self.resource)
 
     def load_config(self, path: Path) -> dict:
         """
         Загружает YAML и выполняет первичную валидацию по JSON Schema.
 
-        :param path: Путь к YAML-файлу
-        :return: Словарь с загруженными данными конфига
+        :param pathlib.Path `path`: Путь к YAML-файлу
+        :return dict: Словарь с загруженными данными конфига
         :raises ValidationError: при ошибках валидации
         :raises KeyError: если схема для данного типа конфига не найдена
         """
         config_name = path.stem
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
+
         if config_name not in self.schema:
             raise KeyError(f"Схема для '{config_name}' не найдена")
-        # Собираем специфичную схему
+
+        # Полная схема, включающая метаописание draft-07, определения и нужную подструктуру
         full_schema = {
+            # идентификатор версии схемы (вер. 7 - стабильная и шороко используется)
             "$schema": "http://json-schema.org/draft-07/schema#",
-            **self.schema["definitions"],
-            **{config_name: self.schema[config_name]},
+            **self.schema["definitions"],  # Включаем shared определения
+            **{
+                config_name: self.schema[config_name]
+            },  # Добавляем секцию схемы по имени конфига
         }
-        validator = Draft7Validator(full_schema, resolver=self.resolver)
+
+        # Создаём валидатор, используя custom registry с зарегистрированным ресурсом схемы
+        validator = Draft7Validator(full_schema, registry=self.registry)
+
+        # Собираем и сортируем ошибки валидации по пути (для стабильного вывода)
         errors = sorted(validator.iter_errors(data), key=lambda e: e.path)
+
         if errors:
             msgs = []
             for err in errors:
@@ -89,8 +96,8 @@ class ConfigValidator:
 
     def __init__(self, loader: ConfigLoader, cfg_dir: Path):
         """
-        :param loader: экземпляр ConfigLoader
-        :param cfg_dir: директория с YAML-конфигами
+        :param ConfigLoader `loader`: экземпляр ConfigLoader
+        :param pathlib.Path `cfg_dir`: директория с YAML-конфигами
         """
         self.loader = loader
         self.cfg_dir = cfg_dir
@@ -99,8 +106,8 @@ class ConfigValidator:
         """
         Валидирует один файл и печатает результат.
 
-        :param path: Путь к файлу
-        :return: True, если успешно, иначе False
+        :param pathlib.Path `path`: Путь к файлу
+        :return bool: True, если успешно, иначе False
         """
         try:
             self.loader.load_config(path)
@@ -127,22 +134,32 @@ class ConfigValidator:
 
 
 if __name__ == "__main__":
+    # Парсер аргументов командной строки
     parser = argparse.ArgumentParser(
         description="CLI для загрузки и валидации YAML-конфигов ETL-пайплайна"
     )
+
+    # Аргумент: путь к одному файлу для валидации
     parser.add_argument("--file", type=Path, help="Одиночный файл для валидации")
+
+    # Аргумент: флаг для валидации всех файлов в директории
     parser.add_argument(
         "--all", action="store_true", help="Валидировать все файлы в директории"
     )
+
+    # Аргумент: путь к директории с конфигами
     parser.add_argument(
         "--cfg-dir", type=Path, default=Path("cfg"), help="Директория с конфигами"
     )
+
+    # Аргумент: путь к файлу схемы валидации
     parser.add_argument(
         "--schema",
         type=Path,
         default=Path("cfg/schema/cfg_validation_schema.yaml"),
         help="Путь к JSON Schema",
     )
+
     args = parser.parse_args()
 
     schema = load_schema(args.schema)
