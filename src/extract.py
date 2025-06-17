@@ -1,7 +1,9 @@
 import logging
-import os
 import sqlite3
 import pandas as pd
+from typing import Any
+from pathlib import Path
+
 
 logger = logging.getLogger(__name__)
 
@@ -9,39 +11,14 @@ logger = logging.getLogger(__name__)
 class DataExtractor:
     """
     Базовый класс для извлечения данных.
-    Предусматривает поддержку нескольких источников: SQLite, CSV, MongoDB, API.
+    Наследники реализуют поддержку нескольких источников: SQLite, CSV, MongoDB, API.
     """
 
     def __init__(self, load_cfg: dict):
         self.cfg = load_cfg
 
-    def extract(self, source: str) -> dict[str, pd.DataFrame]:
-        """
-        Универсальный метод извлечения данных из заданного источника.
-
-        Args:
-            source (str): источник ('sqlite', 'csv', 'mongodb', 'api')
-
-        Returns:
-            dict[str, pd.DataFrame]: таблицы и соответствующие датафреймы
-        """
-        if source == "sqlite" and self.cfg.get("sqlite", {}).get("enabled"):
-            return SQLiteExtractor(self.cfg["sqlite"]).extract()
-
-        elif source == "csv" and self.cfg.get("csv", {}).get("enabled"):
-            return CSVExtractor(self.cfg["csv"]).extract()
-
-        elif source == "mongodb" and self.cfg.get("mongodb", {}).get("enabled"):
-            return MongoExtractor(self.cfg["mongodb"]).extract()
-
-        elif source == "api" and self.cfg.get("api", {}).get("enabled"):
-            return APIExtractor(self.cfg["api"]).extract()
-
-        else:
-            logger.warning(
-                f"Источник данных '{source}' не поддерживается или отключён."
-            )
-            return {}
+    def extract(self) -> Any:
+        pass
 
 
 class SQLiteExtractor(DataExtractor):

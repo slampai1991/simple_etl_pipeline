@@ -82,19 +82,18 @@ class ConfigLoader:
                 path_str = ".".join(map(str, err.path)) or "<root>"
                 msgs.append(f"{path_str}: {err.message}")
             raise ValidationError("\n".join(msgs))
-        
+
         return data
 
 
 class ConfigValidator:
     """
-    CLI-обёртка для ConfigLoader.
     Позволяет валидировать один файл или всю директорию.
     """
 
     def __init__(self, loader: ConfigLoader, cfg_dir: Path):
         """
-        :param ConfigLoader `loader`: экземпляр ConfigLoader
+        :param ConfigLoader `loader`: экземпляр загрузчика ConfigLoader
         :param pathlib.Path `cfg_dir`: директория с YAML-конфигами
         """
         self.loader = loader
@@ -115,10 +114,11 @@ class ConfigValidator:
             print(f"[ERROR] {path}: {e}")
             return False
 
-    def validate_all(self) -> None:
+    def validate_all(self) -> str:
         """
         Валидирует все .yaml-файлы в cfg_dir.
-        Завершает процесс с кодом 1, если есть ошибки.
+
+        :return str: Сообщение об успешности валидации, либо сообщение с количеством ошибок.
         """
         files = list(self.cfg_dir.glob("*.yaml"))
         failures = 0
@@ -127,17 +127,18 @@ class ConfigValidator:
                 failures += 1
 
         if failures:
-            print(f"{failures} файлов не прошли валидацию.")
-            exit(1)
+            return f"{failures} файлов не прошли валидацию."
 
-        print("Все конфиги валидны.")
+        return "Все конфиги валидны."
 
 
-if __name__ == "__main__":
+def run_cli():
+    """
+    CLI для загрузки и валидации конфигов ETL-пайплайна.
+    """
     # CLI-парсер
     parser = argparse.ArgumentParser(
         description="CLI для загрузки и валидации YAML-конфигов ETL-пайплайна",
-        
     )
     parser.add_argument("--file", type=Path, help="Одиночный файл для валидации")
     parser.add_argument(
@@ -153,8 +154,6 @@ if __name__ == "__main__":
         help="Путь к файлу JSON Schema",
     )
 
-    
-
     args = parser.parse_args()
 
     schema = load_schema(args.schema)
@@ -169,3 +168,7 @@ if __name__ == "__main__":
             exit(1)
     else:
         parser.error("Укажите --file или --all")
+
+
+if __name__ == "__main__":
+    run_cli()
