@@ -19,9 +19,12 @@ cfg_tool.py
 
 import yaml
 import argparse
+import logging
 from pathlib import Path
 from jsonschema import Draft7Validator, ValidationError
 from referencing import Registry, Resource
+
+logger = logging.getLogger(__name__)
 
 
 def load_schema(schema_path: Path) -> dict:
@@ -108,10 +111,10 @@ class ConfigValidator:
         """
         try:
             self.loader.load_config(path)
-            print(f"[OK] {path}")
+            logger.info(f"[OK] {path}")
             return True
         except (ValidationError, KeyError) as e:
-            print(f"[ERROR] {path}: {e}")
+            logger.error(f"[ERROR] {path}: {e}")
             return False
 
     def validate_all(self) -> str:
@@ -161,7 +164,10 @@ def run_cli():
     validator = ConfigValidator(loader, args.cfg_dir)
 
     if args.all:
-        validator.validate_all()
+        result = validator.validate_all()
+        logger.info(result)
+        if "не прошли" in result:
+            exit(1)
     elif args.file:
         success = validator.validate_file(args.file)
         if not success:
