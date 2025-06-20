@@ -59,13 +59,50 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any
 import faker
-from pymongo import MongoClient
+# from pymongo import MongoClient
 
 
 logger = logging.getLogger(__name__)
 
 
 class DataGenerator:
+    """
+    Базовый класс для генерации синтетических данных с возможностью внедрения аномалий.
+
+    Предоставляет общую функциональность для генерации данных, включая методы для внедрения
+    аномалий и вспомогательные утилиты.
+
+    Атрибуты:
+    ---------
+    cfg : dict
+        Конфигурация для генерации данных
+    faker : Faker
+        Объект Faker для генерации случайных данных
+    anomaly_cfg : dict
+        Конфигурация для внедрения аномалий в данные
+
+    Методы:
+    -------
+    _inject_anomaly(value: Any, dtype: str, nullable: bool = True) -> Any
+        Внедряет аномалии в данные с заданной вероятностью
+
+    _get_product_names(num_rows: int, products: list, models: list, colors: list) -> set[str]
+        Генерирует уникальные названия продуктов из комбинаций названий, моделей и цветов
+
+    _get_ids(cursor: sqlite3.Cursor) -> list[str]
+        Извлекает ID пользователей из таблицы users
+
+    _get_product_ids(cursor: sqlite3.Cursor) -> list[str]
+        Извлекает ID продуктов из таблицы products
+
+    Особенности:
+    -----------
+    - Поддерживает конфигурируемое внедрение аномалий в данные
+    - Предоставляет утилиты для генерации уникальных названий продуктов
+    - Обеспечивает доступ к ID для поддержки внешних ключей
+    - Использует Faker для генерации реалистичных случайных данных
+    """
+
     def __init__(self, gen_config: dict):
         self.cfg = gen_config  # Конфигурация для генерации данных
         self.faker = faker.Faker()  # Генератор случайных данных
@@ -82,15 +119,10 @@ class DataGenerator:
         """
         Функция для `загрязнения` генерируемых данных.
 
-        Args:
-            value (Any): Оригинальное значение, которое вероятностно будет заменено на аномальное значение.
-            dtype (str): Тип данных значения. Необходим для выбора аномалий.
-            column_name (str, optional): Название колонки, для которой генерируется значение.
-                                          Необходим для выбора аномалий. Defaults to None.
-            nullable (bool, optional): Флаг, указывающий, может ли значение быть `None`. Defaults to True.
-
-        Returns:
-            Загрязненное значение или оригинальное, если не было загрязнения.
+        :param Any `value`: Оригинальное значение, которое вероятностно будет заменено на аномальное значение.
+        :param str `dtype`: Тип данных значения. Необходим для выбора аномалий.
+        :param bool `nullable`: Флаг, указывающий, может ли значение быть `None`. Defaults to True.
+        :return Any: Загрязненное значение или оригинальное, если не было загрязнения.
         """
         probability = self.anomaly_cfg.get("probability", 0.1)
         if random.random() > probability:
@@ -111,16 +143,12 @@ class DataGenerator:
         Генерация уникальных наименований товаров:
         случайные комбинации названий, модели и цвета.
 
-        Args:
-            num_rows (int): Количество строк для генерации.
-            products (list): Список названий продуктов.
-            models (list): Список моделей товаров.
-            colors (list): Список цветов.
-
-        Returns:
-            set: Множество уникальных названий товаров.
-        Raises:
-            ValueError: если в аргументы передан хотя бы один пустой список
+        :param int `num_rows`: Количество строк для генерации.
+        :param list `products`: Список названий продуктов.
+        :param list `models`: Список моделей товаров.
+        :param list `colors`: Список цветов.
+        :raises `ValueError`: если в аргументы передан хотя бы один пустой список
+        :return set: Множество уникальных названий товаров.
         """
         logger.info("Генерация уникальных названий товаров...")
         product_names = set()  # set для контроля уникальности названий
@@ -140,8 +168,10 @@ class DataGenerator:
     @staticmethod
     def _get_ids(cursor: sqlite3.Cursor) -> list[str]:
         """
-        Вспомогательная функция для извлечения user_id из таблицы.
-        Понадобится для осуществления constraints
+        Вспомогательная функция для извлечения id из таблицы users.
+        Понадобится для осуществления constraints.
+
+        :param sqlite3.Cursor `cursor`: объект курсора соединения с БД
         """
         cursor.execute("SELECT id FROM users")
         user_ids = [row[0] for row in cursor.fetchall()]
@@ -150,8 +180,10 @@ class DataGenerator:
     @staticmethod
     def _get_product_ids(cursor: sqlite3.Cursor) -> list[str]:
         """
-        Вспомогательная функция для извлечения product_id из таблицы.
-        Понадобится для осуществления constraints
+        Вспомогательная функция для извлечения id из таблицы products.
+        Понадобится для осуществления constraints.
+
+        :param sqlite3.Cursor `cursor`: объект курсора соединения с БД
         """
         cursor.execute("SELECT id FROM products")
         product_ids = [row[0] for row in cursor.fetchall()]
@@ -159,6 +191,53 @@ class DataGenerator:
 
 
 class SQLiteGenerator(DataGenerator):
+    """
+    SQLiteGenerator - класс для генерации синтетических данных в SQLite базе данных.
+
+    Наследуется от DataGenerator и предоставляет функционал для создания таблиц и заполнения их
+    синтетическими данными с возможностью внедрения аномалий.
+
+    Основные методы:
+    ---------------
+    _generate_users(num_rows: int) -> list[tuple[Any]]
+        Генерирует данные для таблицы users с полями:
+        id, name, age, phone, email, country, reg_date
+
+    _generate_products(num_rows: int) -> list[tuple[Any]]
+        Генерирует данные для таблицы products с полями:
+        id, name, category, price
+
+    _generate_logs(num_rows: int) -> list[tuple[Any]]
+        Генерирует данные для таблицы logs с полями:
+        id, severity, message, timestamp
+
+    _generate_transactions(num_rows: int, user_ids: list[str]) -> list[tuple[Any]]
+        Генерирует данные для таблицы transactions с полями:
+        user_id, amount, timestamp, description, status
+
+    _generate_user_actions(num_rows: int, user_ids: list[str]) -> list[tuple[Any]]
+        Генерирует данные для таблицы user_actions с полями:
+        user_id, action, timestamp
+
+    _generate_orders(num_rows: int, user_ids: list[str], product_ids: list[str]) -> list[tuple[Any]]
+        Генерирует данные для таблицы orders с полями:
+        id, user_id, product_id, date, status, amount
+
+    populate_table(table_name: str, data: list[tuple[Any]], cursor: sqlite3.Cursor) -> None
+        Заполняет указанную таблицу сгенерированными данными
+
+    create_db(db_name: Any = "", db_path: Any = "") -> None
+        Создает SQLite базу данных с таблицами согласно конфигурации и заполняет их данными
+
+    Особенности:
+    -----------
+    - Поддерживает внедрение аномалий в данные через метод _inject_anomaly
+    - Обеспечивает уникальность составных ключей
+    - Поддерживает внешние ключи между таблицами
+    - Конфигурируемая структура таблиц через yaml/json конфиг
+    - Логирование всех этапов генерации
+    """
+
     def __init__(self, gen_config: dict):
         super().__init__(gen_config["sqlite"])
         self.word_lists = self.cfg.get("word_lists", {})
@@ -167,11 +246,8 @@ class SQLiteGenerator(DataGenerator):
         """
         Генерация `грязных` данных для таблицы users.
 
-        Args:
-            num_rows (int): Количество генерируемых записей.
-
-        Returns:
-            list[tuple[Any]]: Список сгенерированных записей.
+        :param int `num_rows`: Количество генерируемых записей.
+        :return list[tuple[Any]]: Список сгенерированных записей.
         """
 
         logger.info(f"Генерация данных для таблицы `users`...")
@@ -198,11 +274,8 @@ class SQLiteGenerator(DataGenerator):
         """
         Генерация `грязных` данных для таблицы products.
 
-        Args:
-            num_rows (int): Количество генерируемых записей.
-
-        Returns:
-            list[tuple[Any]]: Список сгенерированных записей.
+        :param int `num_rows`: Количество генерируемых записей.
+        :return list[tuple[Any]]: Список сгенерированных записей.
         """
 
         logger.info(f"Генерация данных для таблицы `products`...")
@@ -233,11 +306,8 @@ class SQLiteGenerator(DataGenerator):
         """
         Генерация `грязных` данных для таблицы logs.
 
-        Args:
-            num_rows (int): Количество генерируемых записей.
-
-        Returns:
-            list[tuple[Any]]: Список сгенерированных записей.
+        :param int `num_rows`: Количество генерируемых записей.
+        :return list[tuple[Any]]: Список сгенерированных записей.
         """
         logger.info("Генерация данных для таблицы logs...")
 
@@ -269,12 +339,9 @@ class SQLiteGenerator(DataGenerator):
         """
         Генерация `грязных` данных для таблицы transactions.
 
-        Args:
-            num_rows (int): Количество генерируемых записей.
-            user_ids (list[str]): Список пользовательских id.
-
-        Returns:
-            list[tuple[Any]]: Список сгенерированных записей.
+        :param  int `num_rows`: Количество генерируемых записей.
+        :param list[str] `user_ids`: Список пользовательских id.
+        :return list[tuple[Any]]: Список сгенерированных записей.
         """
 
         logger.info("Генерация данных для таблицы `transactions`...")
@@ -316,12 +383,9 @@ class SQLiteGenerator(DataGenerator):
         """
         Генерация `грязных` данных для таблицы transactions.
 
-        Args:
-            num_rows (int): Количество генерируемых записей.
-            user_ids (list[str]): Список пользовательских id.
-
-        Returns:
-            list[tuple[Any]]: Список сгенерированных записей.
+        :param int `num_rows`: Количество генерируемых записей.
+        :param list[str] user_ids: Список пользовательских id.
+        :return list[tuple[Any]]: Список сгенерированных записей.
         """
         logger.info("Генерация данных для таблицы `user_actions`")
 
@@ -350,13 +414,10 @@ class SQLiteGenerator(DataGenerator):
         """
         Генерация `грязных` данных для таблицы transactions.
 
-        Args:
-            num_rows (int): Количество генерируемых записей.
-            user_ids (list[str]): Список пользовательских id.
-            product_ids (list[str]): Список id товаров.
-
-        Returns:
-            list[tuple[Any]]: Список сгенерированных данных.
+        :param int `num_rows`: Количество генерируемых записей.
+        :param list[str] `user_ids`: Список пользовательских id.
+        :param list[str] `product_ids`: Список id товаров.
+        :return list[tuple[Any]]: Список сгенерированных данных.
         """
         logger.info("Генерация данных для таблицы `orders`...")
 
@@ -388,10 +449,9 @@ class SQLiteGenerator(DataGenerator):
         """
         Метод для заполнения таблицы данными.
 
-        Args:
-            table_name (str): Имя таблицы.
-            data (list[tuple[Any]]): Список сгенерированных данных.
-            cursor (sqlite3.Cursor): Курсор для выполнения запросов к БД.
+        :param str `table_name`: Имя таблицы.
+        :param list[tuple[Any]] `data`: Список сгенерированных данных.
+        :param sqlite3.Cursor `cursor`: Курсор для выполнения запросов к БД.
         """
 
         logger.info(f"Заполнение таблицы {table_name}...")
@@ -408,8 +468,7 @@ class SQLiteGenerator(DataGenerator):
         Создаёт базу данных SQLite с таблицами согласно конфигурации,
         генерирует синтетические данные и заполняет ими таблицы.
 
-        Args:
-            db_name (str): Имя БД SQLite.
+        ;param str `db_name`: Имя БД SQLite.
         """
 
         self.actual_db_name = db_name or self.cfg["db_name"]
@@ -508,67 +567,10 @@ class SQLiteGenerator(DataGenerator):
 
 
 class CSVGenerator(DataGenerator):
-    def __init__(self, gen_config: dict):
-        super().__init__(gen_config)
-
-    def generate_csv(self, csv_name: str) -> None:
-        """Метод для генерации синтетических данных для CSV файла.
-        Параметры генерации указаны в yaml файле.
-
-        Args:
-            csv_name (str): Имя генерируемого CSV файла.
-        """
-        try:
-            logger.info("Генерация данных и запись в CSV файл.")
-            csv_path = ""
-
-            with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
-                writer = csv.writer(csvfile)
-                headers = self.cfg["csv_config"]["headers"]
-                writer.writerow(headers)
-
-                for idx in range(1, self.cfg["csv_config"]["num_rows"] + 1):
-                    raw_row = {
-                        "id": idx,
-                        "name": self.faker.name(),
-                        "age": random.randint(18, 65),
-                        "phone": self.faker.phone_number(),
-                        "email": self.faker.email(),
-                        "country": self.faker.country(),
-                        "hire_date": (
-                            datetime.now() - timedelta(days=random.randint(0, 3650))
-                        ).strftime("%Y-%m-%d"),
-                        "department": random.choice(
-                            ["HR", "Engineering", "Sales", "Marketing"]
-                        ),
-                        "job_title": random.choice(
-                            [
-                                "Manager",
-                                "Engineer",
-                                "Analyst",
-                                "Specialist",
-                                "Consultant",
-                                "Coordinator",
-                                "Director",
-                            ]
-                        ),
-                        "salary": random.randint(30000, 150000),
-                    }
-
-                    dirty_row = [
-                        self._inject_anomaly(raw_row[col], col) for col in headers
-                    ]
-                    writer.writerow(dirty_row)
-
-            logger.info(f"Данные успешно сохранены в файл '{csv_name}'.")
-        except Exception as e:
-            logger.error(f"Ошибка при генерации CSV: {e}")
-            raise
+    def __init__(self, csv_cfg: dict):
+        super().__init__(csv_cfg)
 
 
 class MongoGenerator(DataGenerator):
     def __init__(self, gen_config: dict):
         super().__init__(gen_config)
-
-    def generate(self):
-        pass

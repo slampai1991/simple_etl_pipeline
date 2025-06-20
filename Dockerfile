@@ -13,4 +13,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Run main script
-CMD ["python", "main.py"]
+CMD ["python", "run_etl.py"]

@@ -1,11 +1,11 @@
 import hashlib
 import logging
 import logging.handlers
-import os
 import re
 from datetime import datetime
 from collections.abc import MutableMapping
 from typing import Any
+from pathlib import Path
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -174,8 +174,8 @@ class LoggerInitializer:
         """
         Инициализирует и возвращает адаптированный логгер для указанной стадии.
 
-        :param stage_name (str): Имя стадии (должно соответствовать ключу в log_config['stages']).
-        :return: LoggerAdapter, либо None если стадия отключена.
+        :param str `stage_name` (str): Имя стадии (должно соответствовать ключу в log_config['stages']).
+        :return `LoggerAdapter`: , либо None если стадия отключена.
         """
         stages: dict[str, Any] = self.log_config.get("stages", {})
         stage_conf: dict[str, Any] = stages.get(stage_name, {})
@@ -266,13 +266,13 @@ class LoggerInitializer:
         """
         Унифицированное логгирование результатов загрузки данных в хранилище.
 
-        :param logger: Адаптированный логгер для стадии loading.
-        :param source_name: Имя источника (например, "SQLite", "Postgres").
-        :param enabled: Флаг, включена ли загрузка в конфигурации.
-        :param success: True если загрузка прошла успешно, False если была ошибка, None если непонятно.
-        :param error: Объект Exception, если произошла ошибка.
-        :param tables_loaded: Число успешно загруженных таблиц.
-        :param rows_loaded: Число успешно загруженных строк.
+        :param loggeing.LoggerAdapter `logger`: Адаптированный логгер для стадии loading.
+        :param str `source_name`: Имя источника (например, "SQLite", "Postgres").
+        :param bool `enabled`: Флаг, включена ли загрузка в конфигурации.
+        :param bool | None `success`: True если загрузка прошла успешно, False если была ошибка, None если непонятно.
+        :param Exception | None `error`: Объект Exception, если произошла ошибка.
+        :param int `tables_loaded`: Число успешно загруженных таблиц, по умолчанию = 0
+        :param int `rows_loaded`: Число успешно загруженных строк.
         """
         if not enabled:
             logger.warning(

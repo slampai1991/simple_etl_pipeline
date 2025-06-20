@@ -261,12 +261,12 @@ mongo_config:
   db_name: "synthetic_data"
   collections:
     - name: employees
-      num_docs: 500
+      num_docs: 1500
       schema:
         name: TEXT
         age: INTEGER
-        email: EMAIL
-        phone: PHONE
+        email: TEXT
+        phone: TEXT
         hire_date: DATE
         department: TEXT
 
