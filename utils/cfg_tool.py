@@ -51,16 +51,21 @@ class ConfigLoader:
         self.schema = schema
         self.resource = Resource.from_contents(self.schema)
         self.registry = Registry().with_resource("cfg://base", self.resource)
+        self._cache = {}  # Кэш загруженных конфигураций {filename: cfg_data}
 
     def load_config(self, path: Path) -> dict:
         """
         Загружает YAML и выполняет первичную валидацию по JSON Schema.
+        Загруженный результат кэшируется, и при повторном обращении возвращает кэшированный результат
 
         :param pathlib.Path `path`: Путь к YAML-файлу
         :return dict: Данные конфига
         :raises ValidationError: при ошибках валидации
         :raises KeyError: если схема не найдена
         """
+        if path in self._cache:
+            return self._cache[path.stem]
+
         config_name = path.stem
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
 
@@ -86,7 +91,16 @@ class ConfigLoader:
                 msgs.append(f"{path_str}: {err.message}")
             raise ValidationError("\n".join(msgs))
 
+        self._cache[path.stem] = data
         return data
+
+    def get_all_cached_configs(self) -> dict[str, dict]:
+        """
+        Возвращает кэшированные конфиги
+
+        :return dict[str, dict]: Словарь вида {cfg_name: config_dict}
+        """
+        return {path.stem: data for path, data in self._cache.items()}
 
 
 class ConfigValidator:

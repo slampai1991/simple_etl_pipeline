@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from collections.abc import MutableMapping
 from typing import Any
+from colorlog import ColoredFormatter
 from pathlib import Path
 
 
@@ -177,6 +178,29 @@ class LoggerInitializer:
         :param str `stage_name` (str): Имя стадии (должно соответствовать ключу в log_config['stages']).
         :return `LoggerAdapter`: , либо None если стадия отключена.
         """
+        # Внутри init_logger()
+        if self.log_config.get("log_to_console", False):
+            console_handler = logging.StreamHandler()
+        
+            if self.log_config.get("color_console", True) and ColoredFormatter:
+                formatter = ColoredFormatter(
+                    "%(log_color)s%(asctime)s - [%(levelname)s] [%(dry_run)s] - %(name)s - %(message)s",
+                    datefmt=None,
+                    reset=True,
+                    log_colors={
+                        'DEBUG':    'cyan',
+                        'INFO':     'green',
+                        'WARNING':  'yellow',
+                        'ERROR':    'red',
+                        'CRITICAL': 'bold_red',
+                    },
+                )
+            else:
+                formatter = logging.Formatter(log_format)
+        
+            console_handler.setFormatter(formatter)
+            logger.addHandler(console_handler)
+        
         stages: dict[str, Any] = self.log_config.get("stages", {})
         stage_conf: dict[str, Any] = stages.get(stage_name, {})
 

@@ -15,6 +15,48 @@ class DataTransformer:
     def __init__(self, config: dict) -> None:
         self.config = config
 
+    def _drop_nulls(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Удаляет строки с пропущенными значениями из DataFrame
+
+        :param pd.DataFrame `df`: DataFrame для обработки
+        :return pd.DataFrame: обработанный DataFrame
+        """
+        logger.info("Удаление null-значений...")
+        try:
+            df = df.dropna()
+            return df
+        except Exception as e:
+            logger.warning(f"Ошибка удаления null-значений: {e}")
+
+    def _drop_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Удаляет дубликаты в DataFrame.
+
+        :param pd.DataFrame `df`: DataFrame для обработки
+        :return pd.DataFrame: обработанный DataFrame
+        """
+        logger.info("Удаление дубликатов...")
+        try:
+            df = df.drop_duplicates()
+            return df
+        except Exception as e:
+            logger.warning(f"Ошибка удаления дубликатов: {e}")
+
+    def _standartize_timastamp(self, df: pd.DataFrame) -> pd.DataFrame:
+         """
+         Стандартизация timestamp'ов в DataFrame
+
+         :param pd.DataFrame `df`: DataFrame для обработки.
+         :return pd.DataFrame: обработанный DataFrame.
+         """
+         logger.info("Стандартизация timestamp'ов...")
+         try:
+             df["timestamp"] = pd.to_datetime(df["timestamp"])
+             return df
+         except Exception as e:
+             logger.warning(f"Ошибка стандартизации timestamp'ов: {e}")
+
     def transform(
         self, data: dict[str, dict[str, list[str] | list[tuple[Any, ...]]]]
     ) -> dict[str, pd.DataFrame]:
@@ -22,12 +64,12 @@ class DataTransformer:
         Обрабатывает данные SQLite согласно конфигурации:
         - Удаление null-значений
         - Удаление дубликатов
+        - Стандартизация timestamp'ов
 
-        Args:
-            data (dict): Словарь с таблицами и их данными (результат extract_sqlite)
+        Можно добавить другие операции
 
-        Returns:
-            dict: Трансформированные данные в виде DataFrame по таблицам
+        :param pd.DataFrame `df`: Словарь с таблицами и их данными (результат extract_sqlite)
+        :return dict: Трансформированные данные в виде DataFrame по таблицам
         """
 
         cfg = self.config.get("transformation_config", {})
@@ -47,12 +89,16 @@ class DataTransformer:
             if dropna:
                 logger.info(f"Удаление null-значений в таблице '{name}'")
                 df = df.dropna()
-                logger.info(f"Удалено {len(rows) - len(df)} null-значений в таблице {name}")
+                logger.info(
+                    f"Удалено {len(rows) - len(df)} null-значений в таблице {name}"
+                )
             # Удаляем дубликаты
             if drop_duplicates:
                 logger.info(f"Удаляем дубликаты в таблице {name}")
                 df = df.drop_duplicates()
-                logger.info(f"Удалено {len(rows) - len(df)} дубликатов в таблице {name}")
+                logger.info(
+                    f"Удалено {len(rows) - len(df)} дубликатов в таблице {name}"
+                )
 
             # Сохраняем результат
             transformed[name] = df

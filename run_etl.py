@@ -17,7 +17,7 @@ CONFIG_DIR = Path("cfg/")
 SCHEMA_PATH = CONFIG_DIR / "schema/cfg_validation_schema.yaml"
 
 
-def validate_all_configs():
+def validate_configs():
     schema = load_schema(SCHEMA_PATH)
     loader = ConfigLoader(schema)
     validator = ConfigValidator(loader, CONFIG_DIR)
@@ -39,9 +39,9 @@ def main():
     """
     print("\n📦 Запуск ETL-пайплайна\n")
 
-    # Валидация конфигов
+    # === Валидация конфигов ===
     try:
-        validate_all_configs()
+        validate_configs()
     except Exception as e:
         logging.error(f"Валидация конфигов завершилась с ошибкой: {e}")
         return
@@ -57,20 +57,25 @@ def main():
 
     # === Генерация базы данных ===
     gen_input = input("Создать тестовую БД? (y/n): ").strip().lower()
-    if gen_input == "y":
-        db_name = input("Введите имя БД (Enter для использования из конфига): ").strip()
-        db_path = input(
-            "Введите путь для сохранения БД (Enter для использования из конфига): "
-        ).strip()
-        if not db_path:
-            db_path = gen_cfg["sqlite"]["db_path"]
-        SQLiteGenerator(gen_cfg["sqlite"]).create_db(db_name=db_name)
-    else:
-        db_path = input(
-            "Введите путь к существующей БД (Enter для использования из конфига): "
-        ).strip()
-        if not db_path:
-            db_path = ext_cfg["sqlite"]["db_path"]
+    match gen_input:
+        case "y":
+            db_name = input(
+                "Введите имя БД (Enter для использования из конфига): "
+            ).strip()
+            db_path = input(
+                "Введите путь для сохранения БД (Enter для использования из конфига): "
+            ).strip()
+            if not db_path:
+                db_path = gen_cfg["sqlite"]["db_path"]
+            SQLiteGenerator(gen_cfg["sqlite"]).create_db(db_name=db_name)
+        case "n":
+            db_path = input(
+                "Введите путь к существующей БД (Enter для использования из конфига): "
+            ).strip()
+            if not db_path:
+                db_path = ext_cfg["sqlite"]["db_path"]
+        case _:
+            pass
 
     # === Извлечение данных ===
     print("\n🚛 Извлечение данных...")
