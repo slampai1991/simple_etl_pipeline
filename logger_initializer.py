@@ -20,8 +20,8 @@ class SensitiveDataFilter(logging.Filter):
         self, sensitive_fields: dict[str, str], visible_chars: int = 5
     ) -> None:
         """
-        :param sensitive_fields: Словарь {ключ: уровень маскировки ('full' или 'partial')}.
-        :param visible_chars: Количество открытых символов при частичной маскировке.
+        :param dict[str, str] `sensitive_fields`: Словарь {ключ: уровень маскировки ('full' или 'partial')}.
+        :param int `visible_chars`: Количество открытых символов при частичной маскировке. Defaults to 5
         """
         super().__init__()
         self.sensitive_fields = {
@@ -30,19 +30,20 @@ class SensitiveDataFilter(logging.Filter):
         self.visible_chars = visible_chars
 
         # Регулярное выражение, поддерживающее разные форматы ключ-значение
-        # Ключ в кавычках или без, пробелы и разделитель (= или :)
+        keys = "|".join(map(re.escape, self.sensitive_fields.keys()))
         self.pattern = re.compile(
-            r"""
-            (["']?)(?P<key>{keys})(["']?)  # Ключ в кавычках или нет
-            \s*                            # Любые пробелы
-            (?P<sep>=|:)                   # Разделитель = или :
-            \s*                            # Любые пробелы
-            (["']?)                        # Открывающая кавычка значения (если есть)
-            (?P<value>[^"'\s,]+)           # Значение (без пробелов, кавычек, запятых)
-            (["']?)                        # Закрывающая кавычка значения (если есть)
-            """.format(
-                keys="|".join(map(re.escape, self.sensitive_fields.keys()))
-            ),
+            rf"""
+            (["']?)             # Открывающая кавычка ключа
+            (?P<key>{keys})     # Ключ
+            \1                  # Закрывающая кавычка ключа
+            \s*
+            (?P<sep>=|:)        # Разделитель
+            \s*
+            (["'])?             # Открывающая кавычка значения (опционально)
+            (?P<value>.+?)      # Значение (не жадное)
+            (["'])?             # Закрывающая кавычка значения
+            (?=\s|,|$)          # До пробела, запятой или конца строки
+            """,
             re.IGNORECASE | re.VERBOSE,
         )
 
@@ -50,21 +51,23 @@ class SensitiveDataFilter(logging.Filter):
         """
         Маскирует чувствительные данные в сообщении логгера.
 
-        :param record: Объект LogRecord с сообщением лога.
-        :return: True (для прохождения фильтра)
+        :param logging.LogRecord `record`: Объект LogRecord с сообщением лога.
+        :return bool: True (для прохождения фильтра)
         """
         original = record.getMessage()
 
-        def _mask_value(match: re.Match) -> str:
+        def _mask(match: re.Match) -> str:
             """
             Функция для маскировки значения по ключу и типу маскировки.
 
-            :param match: Объект Match, содержащий информацию о совпадении.
-            :return: Строка с маскированным значением.
+            :param re.Match `match`: Объект Match, содержащий информацию о совпадении.
+            :return `str`: Строка с маскированным значением.
             """
+
             key = match.group("key")
             sep = match.group("sep")
             value = match.group("value")
+
             quote_key_start = match.group(1) or ""
             quote_key_end = match.group(3) or ""
             quote_val_start = match.group(5) or ""
@@ -75,31 +78,52 @@ class SensitiveDataFilter(logging.Filter):
             if mask_type == "full":
                 masked_value = "*" * len(value)
             else:  # partial
-                if len(value) <= self.visible_chars:
-                    masked_value = "*" * len(value)
-                else:
-                    masked_value = value[: self.visible_chars] + "*" * (
-                        len(value) - self.visible_chars
-                    )
+                match key:
+                    case "email":
+                        if "@" in value:
+                            local, domain = value.split("@", 1)
+                            if len(local) <= self.visible_chars:
+                                masked_value = "*" * len(local) + "@" + domain
+                            else:
+                                masked_value = (
+                                    local[: self.visible_chars]
+                                    + "*" * (len(local) - self.visible_chars)
+                                    + "@"
+                                    + domain
+                                )
+                        else:
+                            masked_value = value[: self.visible_chars] + "*" * (
+                                len(value) - self.visible_chars
+                            )
+
+                    case _:
+                        if len(value) <= self.visible_chars:
+                            masked_value = "*" * len(value)
+                        else:
+                            masked_value = (
+                                "*" * (len(value) - self.visible_chars)
+                                + value[-self.visible_chars :]
+                            )
 
             # Формируем строку с сохранением исходного формата и кавычек
             return f"{quote_key_start}{key}{quote_key_end}{sep} {quote_val_start}{masked_value}{quote_val_end}"
 
-        filtered = self.pattern.sub(_mask_value, original)
-        record.msg = filtered
+        record.msg = self.pattern.sub(_mask, original)
         record.args = ()
         return True
 
 
 class DryRunAdapter(logging.LoggerAdapter):
     """
-    LoggerAdapter, добавляющий в каждое сообщение логов маркер [DRY] или [LIVE].
+    Класс-адаптер для логирования, добавляющий маркер режима выполнения — [DRY] или [LIVE]
     """
 
     def __init__(self, logger: logging.Logger, dry_run: bool) -> None:
         """
-        :param logger: Базовый объект logging.Logger.
-        :param dry_run: Флаг режима dry run (True — dry run, False — обычный режим).
+        Инициализирует адаптер с указанием режима выполнения.
+
+        :param logging.Logger `logger`: Базовый объект logging.Logger.
+        :param bool `dry_run`: Флаг режима dry run (True — dry run, False — обычный режим).
         """
         super().__init__(logger, {})
         self.dry_run = dry_run
@@ -108,9 +132,9 @@ class DryRunAdapter(logging.LoggerAdapter):
         """
         Модифицирует kwargs, добавляя в extra ключ 'dry_run' со значением 'DRY' или 'LIVE'.
 
-        :param msg: Исходное сообщение.
-        :param kwargs: Аргументы для логгирования (включая 'extra').
-        :return: Кортеж (msg, kwargs) с дополненным kwargs.
+        :param Any `msg`: Исходное сообщение.
+        :param MutableMapping[str, Any] `kwargs`: Аргументы для логгирования (включая 'extra').
+        :return `tuple`: Кортеж (msg, kwargs) с дополненным kwargs.
         """
         extra = kwargs.get("extra", {})
         extra["dry_run"] = "DRY" if self.dry_run else "LIVE"
@@ -123,118 +147,137 @@ class LoggerInitializer:
     Класс для инициализации и настройки логгеров согласно YAML-конфигурации.
 
     Поддерживает:
-      - Валидацию наличия обязательных ключей (pipeline_id, config_version, log_config)
       - Создание логгеров для отдельных стадий с ротацией файлов
       - Маскирование чувствительных данных
       - Добавление маркера [DRY]/[LIVE]
       - Логгирование результата загрузки данных в хранилища
     """
 
-    REQUIRED_KEYS = ["pipeline_id", "config_version", "log_config", "dry_run"]
-
-    def __init__(self, config: dict[str, Any]) -> None:
+    def __init__(self, cfg: dict[str, dict]) -> None:
         """
-        :param config: Словарь конфигурации, загруженный из base_config.yaml
+        :param dict[str, dict] `cfg`: Словарь конфигурации, загруженный из base_cfg.yaml и log_cfg.yaml
         """
-        self.config = config
+        self.base_cfg = cfg["base_cfg"]
+        self.log_cfg = cfg["log_cfg"]
 
-        self.pipeline_id: str = config["pipeline_id"]
-        self.dry_run: bool = config.get("dry_run", False)
-        self.log_config: dict[str, Any] = config["log_config"]
+        self.pipeline_id = self.base_cfg["pipeline_id"]
+        self.dry_run = self.base_cfg.get("dry_run", False)
 
-        self.date_str: str = datetime.now().strftime(
-            self.log_config.get("variables", {}).get("date", "%Y-%m-%d")
+        self.date_str = datetime.now().strftime(
+            self.log_cfg.get("variables", {}).get("date", "%Y-%m-%d")
         )
-        self.hash_str: str = self._generate_hash()
-        self.loggers: dict[str, logging.LoggerAdapter] = {}
+        self.hash_str = self._generate_hash()  # Генерируем хэш
+        self.loggers = {}  # dict[str, logging.LoggerAdapter]
+
+        self.console_handler = self._setup_console_handler()
 
         # Базовый логгер для записи о загрузке конфигурации
         base_logger = logging.getLogger("ConfigLoader")
         base_logger.setLevel(logging.INFO)
-        if not base_logger.handlers:
-            console_handler = logging.StreamHandler()
-            console_handler.setFormatter(
-                logging.Formatter("%(asctime)s - [%(levelname)s] - %(message)s")
-            )
-            base_logger.addHandler(console_handler)
+        if not base_logger.hasHandlers():
+            base_logger.addHandler(self.console_handler)
+
         base_logger.info(
             f"Конфигурация загружена: pipeline_id={self.pipeline_id}, "
-            f"config_version={config['config_version']}"
+            f"config_version={self.base_cfg['config_version']}"
         )
 
     def _generate_hash(self) -> str:
         """
         Генерирует короткий SHA1-хэш на основе pipeline_id и текущей даты.
 
-        :return: 8-символьный хэш.
+        :return `str`: 8-символьный хэш.
         """
         base_str = f"{self.pipeline_id}_{self.date_str}"
         return hashlib.sha1(base_str.encode()).hexdigest()[:8]
+
+    def _setup_console_handler(self) -> logging.Handler:
+        """
+        Настраивает и возвращает обработчик для вывода логов в консоль.
+
+        Поддерживает:
+        - Цветной вывод (если включен в конфигурации и доступен ColoredFormatter)
+        - Кастомный формат логов из конфигурации
+        - Отключение вывода в консоль (возвращает NullHandler)
+
+        :returns logging.Handler: настроенный обработчик логов (StreamHandler или NullHandler)
+        """
+        log_format = self.log_cfg.get(
+            "log_format",
+            {
+                "pattern": "%(asctime)s - [%(levelname)s] [%(dry_run)s] - %(name)s - %(message)s"
+            },
+        ).get("pattern")
+
+        if self.log_cfg.get("log_to_console", False):
+            if self.log_cfg.get("color_log", True) and ColoredFormatter:
+                formatter = ColoredFormatter(
+                    "%(log_color)s" + log_format,
+                    reset=True,
+                    log_colors={
+                        "DEBUG": "cyan",
+                        "INFO": "green",
+                        "WARNING": "yellow",
+                        "ERROR": "red",
+                        "CRITICAL": "bold_red",
+                    },
+                )
+            else:
+                formatter = logging.Formatter(log_format)
+            handler = logging.StreamHandler()
+            handler.setFormatter(formatter)
+            return handler
+        return logging.NullHandler()
 
     def init_logger(self, stage_name: str) -> logging.LoggerAdapter | None:
         """
         Инициализирует и возвращает адаптированный логгер для указанной стадии.
 
-        :param str `stage_name` (str): Имя стадии (должно соответствовать ключу в log_config['stages']).
-        :return `LoggerAdapter`: , либо None если стадия отключена.
+        :param str `stage_name`: Имя стадии (должно соответствовать ключу в log_config['stages']).
+        :return `LoggerAdapter` | `None`: Адаптированный логгер или None, если стадия отключена.
         """
-        # Внутри init_logger()
-        if self.log_config.get("log_to_console", False):
-            console_handler = logging.StreamHandler()
-        
-            if self.log_config.get("color_console", True) and ColoredFormatter:
-                formatter = ColoredFormatter(
-                    "%(log_color)s%(asctime)s - [%(levelname)s] [%(dry_run)s] - %(name)s - %(message)s",
-                    datefmt=None,
-                    reset=True,
-                    log_colors={
-                        'DEBUG':    'cyan',
-                        'INFO':     'green',
-                        'WARNING':  'yellow',
-                        'ERROR':    'red',
-                        'CRITICAL': 'bold_red',
-                    },
-                )
-            else:
-                formatter = logging.Formatter(log_format)
-        
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
-        
-        stages: dict[str, Any] = self.log_config.get("stages", {})
-        stage_conf: dict[str, Any] = stages.get(stage_name, {})
+        if stage_name in self.loggers:
+            return self.loggers[stage_name]
+
+        stages = self.log_cfg.get("stages", {})
+        stage_conf = stages.get(stage_name, {})
 
         if not stage_conf.get("enabled", False):
             return None
 
-        log_dir: str = stage_conf.get(
-            "log_dir", self.log_config.get("log_path", "logs/")
-        )
-        os.makedirs(log_dir, exist_ok=True)
+        log_dir = stage_conf.get("log_dir", self.log_cfg.get("log_path", "logs/"))
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
 
-        log_file_template: str = stage_conf.get("log_file", "{date}_{hash}_stage.log")
-        log_file_name: str = log_file_template.format(
+        log_file_template = stage_conf.get("log_file", "{date}_{hash}_stage.log")
+        log_file_name = log_file_template.format(
             date=self.date_str, pipeline_id=self.pipeline_id, hash=self.hash_str
         )
-        log_file_path: str = os.path.join(log_dir, log_file_name)
+        log_file_path = Path(log_dir) / log_file_name
 
-        logger: logging.Logger = logging.getLogger(stage_name)
-        level_name: str = self.log_config.get("log_level", "INFO").upper()
-        logger.setLevel(getattr(logging, level_name, logging.INFO))
+        logger = logging.getLogger(stage_name)
+        if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
+            logger.addHandler(self.console_handler)
+
+        logger.setLevel(
+            getattr(
+                logging, self.log_cfg.get("log_level", "INFO").upper(), logging.INFO
+            )
+        )
         logger.propagate = False
 
-        log_format: str = self.log_config.get(
-            "log_format",
+        log_format = self.log_cfg["log_format"].get(
+            "pattern",
             "%(asctime)s - [%(levelname)s] [%(dry_run)s] - %(name)s - %(message)s",
         )
         formatter = logging.Formatter(log_format)
 
         # Настраиваем файловый обработчик с ротацией, если включена
-        rotation_cfg: dict[str, Any] = self.log_config.get("log_rotation", {})
+        rotation_cfg = self.log_cfg.get("log_rotation", {})
         if rotation_cfg.get("enabled", False):
-            when: str = rotation_cfg.get("when", "midnight")
-            interval: int = rotation_cfg.get("interval", 1)
-            backup_count: int = rotation_cfg.get("backup_count", 7)
+            when = rotation_cfg.get("when", "midnight")
+            interval = rotation_cfg.get("interval", 1)
+            backup_count = rotation_cfg.get("backup_count", 7)
+
             file_handler = logging.handlers.TimedRotatingFileHandler(
                 log_file_path,
                 when=when,
@@ -248,17 +291,11 @@ class LoggerInitializer:
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-        # Настраиваем консольный вывод, если включён
-        if self.log_config.get("log_to_console", False):
-            console_handler = logging.StreamHandler()
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
-
         # Добавляем фильтр для маскировки чувствительных данных, если включено
-        if self.log_config.get("sanitize_sensitive_data", False):
-            raw_fields = self.log_config.get("sensitive_fields", {})
+        if self.log_cfg.get("sanitize_sensitive_data", False):
+            raw_fields = self.log_cfg.get("sensitive_fields", {})
             if isinstance(raw_fields, dict):
-                sensitive_fields_map: dict[str, str] = raw_fields
+                sensitive_fields_map = raw_fields
             else:
                 # Для обратной совместимости: если указали список, считаем, что все 'full'
                 sensitive_fields_map = {key: "full" for key in raw_fields}
@@ -267,12 +304,11 @@ class LoggerInitializer:
         # Оборачиваем в адаптер, чтобы добавить [DRY]/[LIVE]
         adapted_logger = DryRunAdapter(logger, dry_run=self.dry_run)
 
-        if self.dry_run:
-            adapted_logger.info(
-                "Работа в режиме DRY_RUN — запись данных будет пропущена."
-            )
-        else:
-            adapted_logger.info("Режим LIVE — данные будут записаны.")
+        adapted_logger.info(
+            "Работа в режиме DRY_RUN — запись данных будет пропущена."
+            if self.dry_run
+            else "Режим LIVE — данные будут записаны."
+        )
 
         self.loggers[stage_name] = adapted_logger
         return adapted_logger
@@ -290,7 +326,7 @@ class LoggerInitializer:
         """
         Унифицированное логгирование результатов загрузки данных в хранилище.
 
-        :param loggeing.LoggerAdapter `logger`: Адаптированный логгер для стадии loading.
+        :param logging.LoggerAdapter `logger`: Адаптированный логгер для стадии loading.
         :param str `source_name`: Имя источника (например, "SQLite", "Postgres").
         :param bool `enabled`: Флаг, включена ли загрузка в конфигурации.
         :param bool | None `success`: True если загрузка прошла успешно, False если была ошибка, None если непонятно.

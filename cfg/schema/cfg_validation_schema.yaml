@@ -36,7 +36,6 @@ base_cfg:
     - pipeline_id
     - config_version
     - dry_run
-    - log_config
   properties:
     pipeline_id:
       $ref: "#/definitions/NonEmptyString"
@@ -44,85 +43,91 @@ base_cfg:
       $ref: "#/definitions/NonEmptyString"
     dry_run:
       $ref: "#/definitions/EnabledFlag"
-    log_config:
+
+log_cfg:
+  type: object
+  additionalProperties: false
+  required:
+    - log_path
+    - log_level
+    - log_format
+    - log_to_console
+    - color_log
+    - sanitize_sensitive_data
+    - sensitive_fields
+    - log_rotation
+    - variables
+    - stages
+  properties:
+    log_path:
+      $ref: "#/definitions/PathStr"
+    log_level:
+      type: string
+      enum: [DEBUG, INFO, WARNING, ERROR, CRITICAL]
+    log_format:
       type: object
       additionalProperties: false
       required:
-        - log_path
-        - log_level
-        - log_format
-        - log_to_console
-        - sanitize_sensitive_data
-        - sensitive_fields
-        - log_rotation
-        - variables
-        - stages
+        - pattern
+        - format
       properties:
-        log_path:
-          $ref: "#/definitions/PathStr"
-        log_level:
-          type: string
-          enum:
-            - DEBUG
-            - INFO
-            - WARNING
-            - ERROR
-            - CRITICAL
-        log_format:
+        pattern:
           $ref: "#/definitions/NonEmptyString"
-        log_to_console:
+        format:
+          type: string
+          enum: [json, plain]
+    log_to_console:
+      $ref: "#/definitions/EnabledFlag"
+    color_log:
+      $ref: "#/definitions/EnabledFlag"
+    sanitize_sensitive_data:
+      $ref: "#/definitions/EnabledFlag"
+    sensitive_fields:
+      type: object
+      additionalProperties:
+        type: string
+        enum: [none, partial, full]
+    log_rotation:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - when
+        - interval
+        - backup_count
+      properties:
+        enabled:
           $ref: "#/definitions/EnabledFlag"
-        sanitize_sensitive_data:
-          $ref: "#/definitions/EnabledFlag"
-        sensitive_fields:
-          type: object
-          additionalProperties:
-            type: string
-            enum:
-              - none
-              - partial
-              - full
-        log_rotation:
+        when:
+          $ref: "#/definitions/NonEmptyString"
+        interval:
+          type: integer
+          minimum: 1
+        backup_count:
+          type: integer
+          minimum: 0
+    variables:
+      type: object
+      additionalProperties:
+        $ref: "#/definitions/NonEmptyString"
+    stages:
+      type: object
+      additionalProperties: false
+      patternProperties:
+        "^.*$":
           type: object
           additionalProperties: false
           required:
             - enabled
-            - when
-            - interval
-            - backup_count
+            - log_dir
+            - log_file
           properties:
             enabled:
               $ref: "#/definitions/EnabledFlag"
-            when:
+            log_dir:
+              $ref: "#/definitions/PathStr"
+            log_file:
               $ref: "#/definitions/NonEmptyString"
-            interval:
-              type: integer
-              minimum: 1
-            backup_count:
-              type: integer
-              minimum: 0
-        variables:
-          type: object
-          additionalProperties:
-            $ref: "#/definitions/NonEmptyString"
-        stages:
-          type: object
-          additionalProperties: false
-          patternProperties:
-            "^.*$":
-              type: object
-              additionalProperties: false
-              required:
-                - enabled
-                - log_dir
-                - log_file
-              properties:
-                enabled:
-                  $ref: "#/definitions/EnabledFlag"
-                log_dir:
-                  $ref: "#/definitions/PathStr"
-                log_file:
-                  $ref: "#/definitions/NonEmptyString"
 
 generation_cfg:
   type: object
@@ -316,7 +321,6 @@ generation_cfg:
                 anyOf:
                   - type: "null"
                   - type: string
-
 
 extraction_cfg:
   type: object

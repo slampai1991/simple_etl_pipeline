@@ -32,7 +32,7 @@ def load_schema(schema_path: Path) -> dict:
     Загрузка полной JSON Schema из YAML-файла.
 
     :param pathlib.Path `schema_path`: путь к cfg_validation_schema.yaml
-    :return dict: загруженная схема
+    :return `dict`: загруженная схема
     """
     with open(schema_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -59,9 +59,9 @@ class ConfigLoader:
         Загруженный результат кэшируется, и при повторном обращении возвращает кэшированный результат
 
         :param pathlib.Path `path`: Путь к YAML-файлу
-        :return dict: Данные конфига
-        :raises ValidationError: при ошибках валидации
-        :raises KeyError: если схема не найдена
+        :return `dict`: Данные конфига
+        :raises `ValidationError`: при ошибках валидации
+        :raises `KeyError`: если схема не найдена
         """
         if path in self._cache:
             return self._cache[path.stem]
@@ -98,7 +98,7 @@ class ConfigLoader:
         """
         Возвращает кэшированные конфиги
 
-        :return dict[str, dict]: Словарь вида {cfg_name: config_dict}
+        :return `dict[str, dict]`: Словарь вида {cfg_name: config_dict}
         """
         return {path.stem: data for path, data in self._cache.items()}
 
@@ -121,7 +121,7 @@ class ConfigValidator:
         Валидирует один файл и печатает результат.
 
         :param pathlib.Path `path`: путь к файлу
-        :return bool: True, если успешно, иначе False
+        :return `bool`: True, если успешно, иначе False
         """
         try:
             self.loader.load_config(path)
@@ -135,7 +135,7 @@ class ConfigValidator:
         """
         Валидирует все .yaml-файлы в cfg_dir.
 
-        :return str: Сообщение об успешности валидации, либо сообщение с количеством ошибок.
+        :return `str`: Сообщение об успешности валидации, либо сообщение с количеством ошибок.
         """
         files = list(self.cfg_dir.glob("*.yaml"))
         failures = 0
@@ -149,7 +149,7 @@ class ConfigValidator:
         return "Все конфиги валидны."
 
 
-def run_cli():
+def run_cli() -> None:
     """
     CLI для загрузки и валидации конфигов ETL-пайплайна.
     """

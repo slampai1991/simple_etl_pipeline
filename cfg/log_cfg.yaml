@@ -2,7 +2,7 @@ log_path: "logs/"
 log_level: "INFO"
 log_format:
   pattern: "%(asctime)s - [%(levelname)s] [%(dry_run)s] - %(name)s - %(message)s"
-  format: json | plain
+  format: json
 log_to_console: true
 color_log: true
 sanitize_sensitive_data: true
@@ -12,6 +12,8 @@ sensitive_fields:
   phone: partial
   password: full
   token: full
+  api_key: partial
+  auth_key: partial
 
 log_rotation:
   enabled: true
