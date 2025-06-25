@@ -186,14 +186,103 @@
 
 # if __name__ == "__main__":
 #     main()
-
-import logging
+#!/usr/bin/env python3
+import argparse
+import sys
 from pathlib import Path
-from logger_initializer import LoggerInitializer
-from utils.cfg_tool import load_schema, ConfigLoader, ConfigValidator
 
-loader = ConfigLoader()
-config = loader.load_config(Path("cfg/base_cfg.yaml"))
-schema = load_schema(Path("cfg/schema/cfg_validation_schema.yaml"))
-validator = ConfigValidator(schema)
-validator.validate(config, "base_cfg")
+from utils.cfg_tool import ConfigLoader, ConfigValidator
+from logger_initializer import LoggerInitializer
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Основной скрипт ETL-пайплайна: загрузка конфигов, их валидация и инициализация логирования"
+    )
+    parser.add_argument(
+        "--base",
+        "-b",
+        type=Path,
+        required=True,
+        help="Путь к base_cfg.yaml",
+    )
+    parser.add_argument(
+        "--log",
+        "-l",
+        type=Path,
+        required=True,
+        help="Путь к log_cfg.yaml",
+    )
+    parser.add_argument(
+        "--schema",
+        "-s",
+        type=Path,
+        default=Path("cfg/schema/cfg_validation_schema.yaml"),
+        help="Путь к схеме JSON Schema",
+    )
+    parser.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="Запуск в bootstrap-режиме (игнорирует log_cfg)",
+    )
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+
+    # 1. Загрузка схемы и подготовка валидатора
+    schema = load_schema(args.schema)
+    validator = ConfigValidator(schema)
+
+    # 2. Загрузка и валидация base_cfg
+    loader = ConfigLoader()
+    try:
+        base_cfg = loader.load_config(args.base)
+        validator.validate(base_cfg, args.base.stem)
+    except Exception as e:
+        print(f"[ERROR] При обработке base_cfg: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # 3. Загрузка и валидация log_cfg (если не bootstrap)
+    if args.bootstrap:
+        log_cfg = {}
+    else:
+        try:
+            log_cfg = loader.load_config(args.log)
+            validator.validate(log_cfg, args.log.stem)
+        except Exception as e:
+            print(f"[ERROR] При обработке log_cfg: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    # 4. Инициализация логирования
+    cfg = {"base_cfg": base_cfg, "log_cfg": log_cfg}
+    logger_init = LoggerInitializer(cfg, bootstrap_mode=args.bootstrap)
+
+    # 5. Пример инициализации логгеров для стадий
+    stages = log_cfg.get("stages", {}) if not args.bootstrap else {}
+    loggers = {}
+    for stage in stages:
+        lg = logger_init.init_logger(stage)
+        if lg:
+            loggers[stage] = lg
+
+    # 6. Демонстрация логирования результата загрузки
+    # (пример: берем источники из base_cfg и логируем)
+    sources = base_cfg.get("sources", [])
+    loading_logger = loggers.get("loading")
+    if loading_logger:
+        for src in sources:
+            name = src.get("name", "<unknown>")
+            enabled = src.get("enabled", False)
+            success = src.get("success", None)
+            error = src.get("error", None)
+            tables = src.get("tables_loaded", 0)
+            rows = src.get("rows_loaded", 0)
+            logger_init.log_loading_result(
+                loading_logger, name, enabled, success, error, tables, rows
+            )
+
+    # TODO: здесь разместить остальную логику пайплайна
+
+if __name__ == "__main__":
+    from utils.cfg_tool import load_schema
+    main()

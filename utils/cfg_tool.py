@@ -54,8 +54,7 @@ class ConfigLoader:
     """
 
     def __init__(self):
-        """Инициализация пустого кэша."""
-        self._cache: dict[Path, dict] = {}
+        self._cache: dict[Path, dict] = {}  # Инициализация пустого кэша
 
     def load_config(self, path: Path) -> dict:
         """

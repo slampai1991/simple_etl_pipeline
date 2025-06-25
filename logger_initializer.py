@@ -153,33 +153,38 @@ class LoggerInitializer:
       - Логгирование результата загрузки данных в хранилища
     """
 
-    def __init__(self, cfg: dict[str, dict]) -> None:
-        """
-        :param dict[str, dict] `cfg`: Словарь конфигурации, загруженный из base_cfg.yaml и log_cfg.yaml
-        """
-        self.base_cfg = cfg["base_cfg"]
-        self.log_cfg = cfg["log_cfg"]
+    def __init__(self, cfg: dict[str, dict], bootstrap_mode: bool = False) -> None:
+        self.bootstrap_mode = bootstrap_mode
 
-        self.pipeline_id = self.base_cfg["pipeline_id"]
+        self.base_cfg = cfg.get("base_cfg", {})
+        self.log_cfg = cfg.get("log_cfg", {}) if not bootstrap_mode else {}
+
+        self.pipeline_id = self.base_cfg.get("pipeline_id", "bootstrap")
         self.dry_run = self.base_cfg.get("dry_run", False)
+        self.config_version = self.base_cfg.get("config_version")
 
         self.date_str = datetime.now().strftime(
             self.log_cfg.get("variables", {}).get("date", "%Y-%m-%d")
         )
-        self.hash_str = self._generate_hash()  # Генерируем хэш
-        self.loggers = {}  # dict[str, logging.LoggerAdapter]
+        self.hash_str = self._generate_hash()
+
+        self.loggers = {}
 
         self.console_handler = self._setup_console_handler()
 
-        # Базовый логгер для записи о загрузке конфигурации
-        base_logger = logging.getLogger("ConfigLoader")
+        # Инициализируем базовый логгер
+        base_logger = logging.getLogger(
+            "Bootstrap" if bootstrap_mode else "ConfigLoader"
+        )
         base_logger.setLevel(logging.INFO)
         if not base_logger.hasHandlers():
             base_logger.addHandler(self.console_handler)
+        base_logger.propagate = False
 
         base_logger.info(
-            f"Конфигурация загружена: pipeline_id={self.pipeline_id}, "
-            f"config_version={self.base_cfg['config_version']}"
+            "Запуск в bootstrap-режиме."
+            if bootstrap_mode
+            else f"Конфигурация загружена: pipeline_id={self.pipeline_id}, config_version={self.config_version}"
         )
 
     def _generate_hash(self) -> str:
@@ -202,6 +207,14 @@ class LoggerInitializer:
 
         :returns logging.Handler: настроенный обработчик логов (StreamHandler или NullHandler)
         """
+        if self.bootstrap_mode:
+            formatter = logging.Formatter(
+                "%(asctime)s - [BOOT] [%(levelname)s] - %(name)s - %(message)s"
+            )
+            handler = logging.StreamHandler()
+            handler.setFormatter(formatter)
+            return handler
+
         log_format = self.log_cfg.get(
             "log_format",
             {
