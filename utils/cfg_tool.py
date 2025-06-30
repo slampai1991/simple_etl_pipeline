@@ -13,11 +13,11 @@ cfg_tool.py
   SCHEMA_PATH = CFG_DIR / "schema/cfg_validation_schema.yaml"
 
   schema = load_schema(SCHEMA_PATH)
-  
+
   cfg_loader = ConfigLoader()
   cfg_validator = ConfigValidator(schema=schema)
   cfg_checker = ConfigChecker(loader=cfg_loader, validator=cfg_validator, cfg_dir=CFG_DIR)
-  
+
   cfg_checker.validate_all()
 
 SOON ->
@@ -70,16 +70,15 @@ class ConfigLoader:
         :raises `yaml.YAMLError`: при ошибке разбора YAML
         :raises `FileNotFoundError`: если файл не существует
         """
-        resolved_path = path.resolve()
-        if resolved_path in self._cache:
-            logger.info(f"Загружена сохраненная конфигурация: {resolved_path.stem}")
-            return self._cache[resolved_path]
+        if path in self._cache:
+            logger.info(f"Загружена сохраненная конфигурация: {path.stem}")
+            return self._cache[path]
 
         try:
-            with open(resolved_path, "r", encoding="utf8") as f:
+            with open(path, "r", encoding="utf8") as f:
                 data = yaml.safe_load(f)
-            self._cache[resolved_path] = data
-            logger.info(f"Конфиг успешно загружен: {resolved_path}")
+            self._cache[path] = data
+            logger.info(f"Конфиг успешно загружен: {path}")
             return data
         except yaml.YAMLError as e1:
             logger.error(f"Ошибка при загрузке файла конфигурации: {e1}")
@@ -163,7 +162,7 @@ class ConfigChecker:
             logger.error(f"[ERROR] {path}: {e}")
             return False
 
-    def validate_all(self) -> str:
+    def validate_all(self) -> None:
         """
         Валидирует все YAML-файлы в директории.
 
@@ -177,5 +176,6 @@ class ConfigChecker:
                 failures += 1
 
         if failures:
-            return f"{failures} файлов не прошли валидацию."
-        return "Все конфиги валидны."
+            logger.debug(f"{failures} файлов не прошли валидацию.")
+            return None
+        logger.info("Все конфиги валидны.")

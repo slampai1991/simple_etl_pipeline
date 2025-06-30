@@ -13,7 +13,6 @@ except ImportError:
     ColoredFormatter = None
 
 
-
 class SensitiveDataFilter(logging.Filter):
     """
     Фильтр логов, маскирующий чувствительные данные по ключам и типам маскировки.
@@ -223,8 +222,9 @@ class LoggerInitializer:
         :returns logging.Handler: настроенный обработчик логов (StreamHandler или NullHandler)
         """
         if self.bootstrap_mode:
+            # Всегда добавляем [BOOTSTRAP] в каждую строку
             formatter = logging.Formatter(
-                "%(asctime)s - [%(levelname)s] - %(name)s - %(message)s"
+                "%(asctime)s - [BOOTSTRAP] - %(levelname)s - %(message)s"
             )
             handler = logging.StreamHandler()
             handler.setFormatter(formatter)
@@ -271,10 +271,7 @@ class LoggerInitializer:
         logger.setLevel(level)
         if not logger.handlers:
             handler = self._setup_console_handler()
-            formatter = logging.Formatter(
-                f"%(asctime)s - [{stage_name}] - %(levelname)s - %(message)s"
-            )
-            handler.setFormatter(formatter)
+            # Форматтер уже содержит [BOOTSTRAP], не нужно дублировать
             logger.addHandler(handler)
         logger.propagate = False
         return logger
@@ -296,7 +293,10 @@ class LoggerInitializer:
             return None
 
         # Формируем директорию для запуска: logs/etl-{pipeline_id}-{date}-{hash}/
-        run_log_dir = Path(self.log_cfg.get("log_path", "logs/")) / f"etl-{self.pipeline_id}-{self.date_str}-{self.hash_str}"
+        run_log_dir = (
+            Path(self.log_cfg.get("log_path", "logs/"))
+            / f"etl-{self.pipeline_id}-{self.date_str}-{self.hash_str}"
+        )
         run_log_dir.mkdir(parents=True, exist_ok=True)
 
         log_dir = run_log_dir / stage_conf.get("log_dir", stage_name)
@@ -367,7 +367,9 @@ class LoggerInitializer:
         self.loggers[stage_name] = adapted_logger
         return adapted_logger
 
-    def _add_handler_once(self, logger: logging.Logger, handler: logging.Handler) -> None:
+    def _add_handler_once(
+        self, logger: logging.Logger, handler: logging.Handler
+    ) -> None:
         """
         Добавляет handler к logger только если такого handler ещё нет.
         Для файловых обработчиков сравнивает путь к файлу, для StreamHandler — только тип.
@@ -377,12 +379,14 @@ class LoggerInitializer:
         """
         for h in logger.handlers:
             if type(h) == type(handler):
-                h_file = getattr(h, 'baseFilename', None)
-                handler_file = getattr(handler, 'baseFilename', None)
+                h_file = getattr(h, "baseFilename", None)
+                handler_file = getattr(handler, "baseFilename", None)
                 if h_file and handler_file:
                     if h_file == handler_file:
                         return
-                elif isinstance(h, logging.StreamHandler) and isinstance(handler, logging.StreamHandler):
+                elif isinstance(h, logging.StreamHandler) and isinstance(
+                    handler, logging.StreamHandler
+                ):
                     return
         logger.addHandler(handler)
 
