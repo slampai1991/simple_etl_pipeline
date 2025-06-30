@@ -153,7 +153,14 @@ class LoggerInitializer:
       - Логгирование результата загрузки данных в хранилища
     """
 
-    def __init__(self, cfg: dict[str, dict], bootstrap_mode: bool = False) -> None:
+    def __init__(
+        self, cfg: dict[str, dict] | dict = {}, bootstrap_mode: bool = False
+    ) -> None:
+        """
+
+        :param dict[str, dict] `cfg`: Объединенный словарь с конфигурациями base_cfg и log_cfg
+        :param bool `bootstrap_mode`: Флаг для запуска режима первичного логгирования. Defaults to False.
+        """
         self.bootstrap_mode = bootstrap_mode
 
         self.base_cfg = cfg.get("base_cfg", {})
@@ -161,7 +168,7 @@ class LoggerInitializer:
 
         self.pipeline_id = self.base_cfg.get("pipeline_id", "bootstrap")
         self.dry_run = self.base_cfg.get("dry_run", False)
-        self.config_version = self.base_cfg.get("config_version")
+        self.config_version = self.base_cfg.get("config_version", "bootstrap")
 
         self.date_str = datetime.now().strftime(
             self.log_cfg.get("variables", {}).get("date", "%Y-%m-%d")
@@ -172,20 +179,23 @@ class LoggerInitializer:
 
         self.console_handler = self._setup_console_handler()
 
-        # Инициализируем базовый логгер
-        base_logger = logging.getLogger(
-            "Bootstrap" if bootstrap_mode else "ConfigLoader"
-        )
-        base_logger.setLevel(logging.INFO)
-        if not base_logger.hasHandlers():
-            base_logger.addHandler(self.console_handler)
-        base_logger.propagate = False
-
-        base_logger.info(
-            "Запуск в bootstrap-режиме."
-            if bootstrap_mode
-            else f"Конфигурация загружена: pipeline_id={self.pipeline_id}, config_version={self.config_version}"
-        )
+        if self.bootstrap_mode:
+            self.bootstrap_logger = self._init_bootstrap_logger()
+            root = logging.getLogger()
+            root.setLevel(logging.INFO)
+            root.addHandler(self._setup_console_handler())
+            if bootstrap_mode:
+                root.propagate = False
+            self.bootstrap_logger.info("Запуск в bootstrap-режиме.")
+        else:
+            base_logger = logging.getLogger("ConfigLoader")
+            base_logger.setLevel(logging.INFO)
+            if not base_logger.hasHandlers():
+                base_logger.addHandler(self.console_handler)
+            base_logger.propagate = False
+            base_logger.info(
+                f"Конфигурация загружена: pipeline_id={self.pipeline_id}, config_version={self.config_version}"
+            )
 
     def _generate_hash(self) -> str:
         """
@@ -209,7 +219,7 @@ class LoggerInitializer:
         """
         if self.bootstrap_mode:
             formatter = logging.Formatter(
-                "%(asctime)s - [BOOT] [%(levelname)s] - %(name)s - %(message)s"
+                "%(asctime)s - [%(levelname)s] - %(name)s - %(message)s"
             )
             handler = logging.StreamHandler()
             handler.setFormatter(formatter)
@@ -241,6 +251,28 @@ class LoggerInitializer:
             handler.setFormatter(formatter)
             return handler
         return logging.NullHandler()
+
+    def _init_bootstrap_logger(self) -> logging.Logger:
+        """
+        Инициализирует временный логгер для вывода сообщений до загрузки полной конфигурации логгирования.
+        Используется на этапе загрузки и валидации конфигураций.
+
+        :return `logging.Logger`: Логгер с минимальной конфигурацией.
+        """
+        stage_name = "BOOTSTRAP"
+        level = "INFO"
+
+        logger = logging.getLogger(stage_name)
+        logger.setLevel(level)
+        if not logger.handlers:
+            handler = self._setup_console_handler()
+            formatter = logging.Formatter(
+                f"%(asctime)s - [{stage_name}] - %(levelname)s - %(message)s"
+            )
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        logger.propagate = False
+        return logger
 
     def init_logger(self, stage_name: str) -> logging.LoggerAdapter | None:
         """
