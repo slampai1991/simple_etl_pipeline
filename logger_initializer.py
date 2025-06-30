@@ -5,8 +5,13 @@ import re
 from datetime import datetime
 from collections.abc import MutableMapping
 from typing import Any
-from colorlog import ColoredFormatter
 from pathlib import Path
+
+try:
+    from colorlog import ColoredFormatter
+except ImportError:
+    ColoredFormatter = None
+
 
 
 class SensitiveDataFilter(logging.Filter):
@@ -290,18 +295,22 @@ class LoggerInitializer:
         if not stage_conf.get("enabled", False):
             return None
 
-        log_dir = stage_conf.get("log_dir", self.log_cfg.get("log_path", "logs/"))
-        Path(log_dir).mkdir(parents=True, exist_ok=True)
+        # Формируем директорию для запуска: logs/etl-{pipeline_id}-{date}-{hash}/
+        run_log_dir = Path(self.log_cfg.get("log_path", "logs/")) / f"etl-{self.pipeline_id}-{self.date_str}-{self.hash_str}"
+        run_log_dir.mkdir(parents=True, exist_ok=True)
 
-        log_file_template = stage_conf.get("log_file", "{date}_{hash}_stage.log")
+        log_dir = run_log_dir / stage_conf.get("log_dir", stage_name)
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        log_file_template = stage_conf.get("log_file", f"{stage_name}.log")
         log_file_name = log_file_template.format(
             date=self.date_str, pipeline_id=self.pipeline_id, hash=self.hash_str
         )
-        log_file_path = Path(log_dir) / log_file_name
+        log_file_path = log_dir / log_file_name
 
         logger = logging.getLogger(stage_name)
         if not any(isinstance(h, logging.StreamHandler) for h in logger.handlers):
-            logger.addHandler(self.console_handler)
+            self._add_handler_once(logger, self.console_handler)
 
         logger.setLevel(
             getattr(
@@ -334,7 +343,7 @@ class LoggerInitializer:
             file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
 
         file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
+        self._add_handler_once(logger, file_handler)
 
         # Добавляем фильтр для маскировки чувствительных данных, если включено
         if self.log_cfg.get("sanitize_sensitive_data", False):
@@ -357,6 +366,25 @@ class LoggerInitializer:
 
         self.loggers[stage_name] = adapted_logger
         return adapted_logger
+
+    def _add_handler_once(self, logger: logging.Logger, handler: logging.Handler) -> None:
+        """
+        Добавляет handler к logger только если такого handler ещё нет.
+        Для файловых обработчиков сравнивает путь к файлу, для StreamHandler — только тип.
+
+        :param logging.Logger `logger`: Логгер, к которому добавляется обработчик
+        :param logging.Handler `handler`: Обработчик, который нужно добавить
+        """
+        for h in logger.handlers:
+            if type(h) == type(handler):
+                h_file = getattr(h, 'baseFilename', None)
+                handler_file = getattr(handler, 'baseFilename', None)
+                if h_file and handler_file:
+                    if h_file == handler_file:
+                        return
+                elif isinstance(h, logging.StreamHandler) and isinstance(handler, logging.StreamHandler):
+                    return
+        logger.addHandler(handler)
 
     def log_loading_result(
         self,

@@ -7,16 +7,21 @@ cfg_tool.py
   - ConfigValidator: проводит валидацию по JSON Schema
 
 Пример использования:
-  from cfg_tool import ConfigLoader, ConfigValidator
+  from cfg_tool import load_schema, ConfigLoader, ConfigValidator
 
-  loader = ConfigLoader()
-  config = loader.load_config(Path("cfg/base_cfg.yaml"))
+  CFG_DIR = Path("cfg/")
+  SCHEMA_PATH = CFG_DIR / "schema/cfg_validation_schema.yaml"
 
-  schema = load_schema(Path("cfg/schema/cfg_validation_schema.yaml"))
-  validator = ConfigValidator(schema)
-  validator.validate(config, "base_cfg")
+  schema = load_schema(SCHEMA_PATH)
+  
+  cfg_loader = ConfigLoader()
+  cfg_validator = ConfigValidator(schema=schema)
+  cfg_checker = ConfigChecker(loader=cfg_loader, validator=cfg_validator, cfg_dir=CFG_DIR)
+  
+  cfg_checker.validate_all()
 
-Также может быть использован как CLI:
+SOON ->
+`Также может быть использован как CLI:
   python cfg_tool.py --file cfg/base_cfg.yaml
   python cfg_tool.py --all
 
@@ -24,7 +29,7 @@ CLI-параметры:
   --file <path>        валидировать один файл
   --all                валидировать все файлы в директории cfg/
   --cfg-dir <dir>      директория с конфигами (по умолчанию cfg/)
-  --schema <path>      путь к файлу схемы (по умолчанию cfg/schema/cfg_validation_schema.yaml)
+  --schema <path>      путь к файлу схемы (по умолчанию cfg/schema/cfg_validation_schema.yaml)`
 """
 
 import yaml
@@ -65,14 +70,16 @@ class ConfigLoader:
         :raises `yaml.YAMLError`: при ошибке разбора YAML
         :raises `FileNotFoundError`: если файл не существует
         """
-        if path in self._cache:
-            logger.info(f"Загружена сохраненная конфигурация: {path.stem}")
-            return self._cache[path]
+        resolved_path = path.resolve()
+        if resolved_path in self._cache:
+            logger.info(f"Загружена сохраненная конфигурация: {resolved_path.stem}")
+            return self._cache[resolved_path]
 
         try:
-            with open(f"{path}", "r", encoding="utf8") as f:
+            with open(resolved_path, "r", encoding="utf8") as f:
                 data = yaml.safe_load(f)
-            self._cache[path] = data
+            self._cache[resolved_path] = data
+            logger.info(f"Конфиг успешно загружен: {resolved_path}")
             return data
         except yaml.YAMLError as e1:
             logger.error(f"Ошибка при загрузке файла конфигурации: {e1}")
@@ -172,49 +179,3 @@ class ConfigChecker:
         if failures:
             return f"{failures} файлов не прошли валидацию."
         return "Все конфиги валидны."
-
-
-def run_cli() -> None:
-    """
-    CLI-интерфейс для запуска валидации конфигов.
-    """
-    parser = argparse.ArgumentParser(
-        description="CLI для загрузки и валидации YAML-конфигов ETL-пайплайна"
-    )
-    parser.add_argument("--file", type=Path, help="Валидация одного файла конфигурации")
-    parser.add_argument("--all", action="store_true", help="Валидировать все конфиги")
-    parser.add_argument(
-        "--cfg-dir",
-        type=Path,
-        default=Path("cfg"),
-        help="Путь к директории с YAML-файлами",
-    )
-    parser.add_argument(
-        "--schema",
-        type=Path,
-        default=Path("cfg/schema/cfg_validation_schema.yaml"),
-        help="Путь к файлу схемы",
-    )
-
-    args = parser.parse_args()
-
-    schema = load_schema(args.schema)
-    loader = ConfigLoader()
-    validator = ConfigValidator(schema)
-    checker = ConfigChecker(loader, validator, args.cfg_dir)
-
-    if args.all:
-        result = checker.validate_all()
-        logger.info(result)
-        if "не прошли" in result:
-            exit(1)
-    elif args.file:
-        success = checker.validate_file(args.file)
-        if not success:
-            exit(1)
-    else:
-        parser.error("Укажите --file или --all")
-
-
-if __name__ == "__main__":
-    run_cli()
