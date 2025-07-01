@@ -59,10 +59,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any
 import faker
+
 # from pymongo import MongoClient
-
-
-logger = logging.getLogger(__name__)
 
 
 class DataGenerator:
@@ -137,7 +135,7 @@ class DataGenerator:
 
     @staticmethod
     def _get_product_names(
-        num_rows: int, products: list, models: list, colors: list
+        num_rows: int, products: list, models: list, colors: list, logger=None
     ) -> set[str]:
         """
         Генерация уникальных наименований товаров:
@@ -147,10 +145,12 @@ class DataGenerator:
         :param list `products`: Список названий продуктов.
         :param list `models`: Список моделей товаров.
         :param list `colors`: Список цветов.
+        :param logger: логгер для сообщений (опционально)
         :raises `ValueError`: если в аргументы передан хотя бы один пустой список
         :return set: Множество уникальных названий товаров.
         """
-        logger.info("Генерация уникальных названий товаров...")
+        if logger:
+            logger.info("Генерация уникальных названий товаров...")
         product_names = set()  # set для контроля уникальности названий
 
         if not all([products, models, colors]):
@@ -160,9 +160,10 @@ class DataGenerator:
             product_name = f"{random.choice(colors)} {random.choice(products)} {random.choice(models)}"
             product_names.add(product_name)
 
-        logger.info(
-            f"Названия товаров сгенерированы успешно. Уникальных названий: {len(product_names)}"
-        )
+        if logger:
+            logger.info(
+                f"Названия товаров сгенерированы успешно. Уникальных названий: {len(product_names)}"
+            )
         return product_names
 
     @staticmethod
@@ -238,19 +239,20 @@ class SQLiteGenerator(DataGenerator):
     - Логирование всех этапов генерации
     """
 
-    def __init__(self, gen_config: dict):
+    def __init__(self, gen_config: dict, logger=None):
         super().__init__(gen_config["sqlite"])
         self.word_lists = self.cfg.get("word_lists", {})
+        self.logger = logger or logging.getLogger(__name__)
 
     def _generate_users(self, num_rows: int) -> list[tuple[Any]]:
         """
         Генерация `грязных` данных для таблицы users.
 
         :param int `num_rows`: Количество генерируемых записей.
-        :return list[tuple[Any]]: Список сгенерированных записей.
+        :return `list[tuple[Any]]`: Список сгенерированных записей.
         """
 
-        logger.info(f"Генерация данных для таблицы `users`...")
+        self.logger.info(f"Генерация данных для таблицы `users`...")
         data = []
 
         for _ in range(num_rows):
@@ -267,7 +269,7 @@ class SQLiteGenerator(DataGenerator):
             )
             data.append((None, name, age, phone, email, country, reg_date))
 
-        logger.info("Генерация данных для таблицы `users` завершена!")
+        self.logger.info("Генерация данных для таблицы `users` завершена!")
         return data
 
     def _generate_products(self, num_rows: int) -> list[tuple[Any]]:
@@ -275,10 +277,10 @@ class SQLiteGenerator(DataGenerator):
         Генерация `грязных` данных для таблицы products.
 
         :param int `num_rows`: Количество генерируемых записей.
-        :return list[tuple[Any]]: Список сгенерированных записей.
+        :return `list[tuple[Any]]`: Список сгенерированных записей.
         """
 
-        logger.info(f"Генерация данных для таблицы `products`...")
+        self.logger.info(f"Генерация данных для таблицы `products`...")
 
         data = []
         product_names = self._get_product_names(
@@ -286,6 +288,7 @@ class SQLiteGenerator(DataGenerator):
             products=self.word_lists.get("products", []),
             models=self.word_lists.get("models", []),
             colors=self.word_lists.get("colors", []),
+            logger=self.logger,
         )
 
         for _ in range(num_rows):
@@ -299,7 +302,7 @@ class SQLiteGenerator(DataGenerator):
             price = self._inject_anomaly(round(random.uniform(1, 2500), 2), "REAL")
             data.append((None, name, category, price))
 
-        logger.info("Генерация данных для таблицы `products` завершена!")
+        self.logger.info("Генерация данных для таблицы `products` завершена!")
         return data
 
     def _generate_logs(self, num_rows: int) -> list[tuple[Any]]:
@@ -307,9 +310,9 @@ class SQLiteGenerator(DataGenerator):
         Генерация `грязных` данных для таблицы logs.
 
         :param int `num_rows`: Количество генерируемых записей.
-        :return list[tuple[Any]]: Список сгенерированных записей.
+        :return `list[tuple[Any]]`: Список сгенерированных записей.
         """
-        logger.info("Генерация данных для таблицы logs...")
+        self.logger.info("Генерация данных для таблицы logs...")
 
         data = []
         severities = list(self.word_lists["log_messages"].keys())
@@ -330,7 +333,7 @@ class SQLiteGenerator(DataGenerator):
             severity = self._inject_anomaly(severity, "TEXT")
             data.append((None, severity, message, timestamp))
 
-        logger.info("Генерация данных для таблицы `logs` завершена!")
+        self.logger.info("Генерация данных для таблицы `logs` завершена!")
         return data
 
     def _generate_transactions(
@@ -341,10 +344,10 @@ class SQLiteGenerator(DataGenerator):
 
         :param  int `num_rows`: Количество генерируемых записей.
         :param list[str] `user_ids`: Список пользовательских id.
-        :return list[tuple[Any]]: Список сгенерированных записей.
+        :return `list[tuple[Any]]`: Список сгенерированных записей.
         """
 
-        logger.info("Генерация данных для таблицы `transactions`...")
+        self.logger.info("Генерация данных для таблицы `transactions`...")
 
         data = []
         unique = set()  # Для контроля уникальности композитных PK
@@ -374,7 +377,7 @@ class SQLiteGenerator(DataGenerator):
 
             data.append((uid, amount, ts, description, status))
 
-        logger.info("Генерация данных для таблицы `transactions` завершена!")
+        self.logger.info("Генерация данных для таблицы `transactions` завершена!")
         return data
 
     def _generate_user_actions(
@@ -385,9 +388,9 @@ class SQLiteGenerator(DataGenerator):
 
         :param int `num_rows`: Количество генерируемых записей.
         :param list[str] user_ids: Список пользовательских id.
-        :return list[tuple[Any]]: Список сгенерированных записей.
+        :return `list[tuple[Any]]`: Список сгенерированных записей.
         """
-        logger.info("Генерация данных для таблицы `user_actions`")
+        self.logger.info("Генерация данных для таблицы `user_actions`")
 
         data = []
         unique = set()  # Для контроля уникальности композитных PK
@@ -405,7 +408,7 @@ class SQLiteGenerator(DataGenerator):
             action = self._inject_anomaly(random.choice(actions), "TEXT")
             data.append((uid, action, ts))
 
-        logger.info("Генерация данных для таблицы `user_actions` завершена!")
+        self.logger.info("Генерация данных для таблицы `user_actions` завершена!")
         return data
 
     def _generate_orders(
@@ -417,9 +420,9 @@ class SQLiteGenerator(DataGenerator):
         :param int `num_rows`: Количество генерируемых записей.
         :param list[str] `user_ids`: Список пользовательских id.
         :param list[str] `product_ids`: Список id товаров.
-        :return list[tuple[Any]]: Список сгенерированных данных.
+        :return `list[tuple[Any]]`: Список сгенерированных данных.
         """
-        logger.info("Генерация данных для таблицы `orders`...")
+        self.logger.info("Генерация данных для таблицы `orders`...")
 
         data = []
         order_stats = self.word_lists.get("order_status", {})
@@ -440,7 +443,7 @@ class SQLiteGenerator(DataGenerator):
             amount = self._inject_anomaly(random.randint(1, 2500), "REAL")
             data.append((None, uid, pid, date, status, amount))
 
-        logger.info("Генерация данных для таблицы `orders` завершена!")
+        self.logger.info("Генерация данных для таблицы `orders` завершена!")
         return data
 
     def populate_table(
@@ -454,21 +457,22 @@ class SQLiteGenerator(DataGenerator):
         :param sqlite3.Cursor `cursor`: Курсор для выполнения запросов к БД.
         """
 
-        logger.info(f"Заполнение таблицы {table_name}...")
+        self.logger.info(f"Заполнение таблицы {table_name}...")
 
         for row in data:
             placeholders = ", ".join(["?" for _ in row])
             query = f"INSERT INTO {table_name} VALUES ({placeholders})"
             cursor.execute(query, row)
 
-        logger.info(f"Таблица {table_name} успешно заполнена!")
+        self.logger.info(f"Таблица {table_name} успешно заполнена!")
 
     def create_db(self, db_name: Any = "", db_path: Any = "") -> None:
         """
         Создаёт базу данных SQLite с таблицами согласно конфигурации,
         генерирует синтетические данные и заполняет ими таблицы.
 
-        ;param str `db_name`: Имя БД SQLite.
+        :param str `db_name`: Имя БД SQLite.
+        :param str `db_path`: Путь для сохранения файла БД.
         """
 
         self.actual_db_name = db_name or self.cfg["db_name"]
@@ -476,25 +480,27 @@ class SQLiteGenerator(DataGenerator):
 
         if not db_name:
             db_name = self.cfg["db_name"]
-            logger.info(
+            self.logger.info(
                 f"Имя БД не указано. Будет использовано имя по умолчанию: {db_name}"
             )
 
         if not db_path:
             db_path = self.cfg["db_path"]
-            logger.info(
+            self.logger.info(
                 f"Путь для сохранения файла БД не указан. Будет использован путь по умолчанию {db_path}"
             )
 
         db_path = Path(db_path)
         if not db_path.exists():
             db_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Создана директория {db_path}")
+            self.logger.info(f"Создана директория {db_path}")
 
         full_path = db_path / db_name
 
         with sqlite3.connect(full_path) as conn:
-            logger.info(f"Создана БД SQLite `{db_name}`. Приступаю к созданию таблиц.")
+            self.logger.info(
+                f"Создана БД SQLite `{db_name}`. Приступаю к созданию таблиц."
+            )
 
             cursor = conn.cursor()
             table_names = []
@@ -509,7 +515,7 @@ class SQLiteGenerator(DataGenerator):
                 table_names.append(table_name)
 
                 try:
-                    logger.info(f"Создаю таблицу {table_name}...")
+                    self.logger.info(f"Создаю таблицу {table_name}...")
 
                     columns_str = ", ".join(
                         [
@@ -527,9 +533,9 @@ class SQLiteGenerator(DataGenerator):
                     """
                     cursor.execute(query)
 
-                    logger.info(f"Таблица {table_name} успешно создана!")
+                    self.logger.info(f"Таблица {table_name} успешно создана!")
                     count += 1
-                    logger.info("Приступаю к заполненю таблицы данными!")
+                    self.logger.info("Приступаю к заполненю таблицы данными!")
 
                     method_name = getattr(self, f"_generate_{table_name}", None)
                     if callable(method_name):
@@ -557,9 +563,9 @@ class SQLiteGenerator(DataGenerator):
                         self.populate_table(table_name, data, cursor)
 
                 except sqlite3.Error as e:
-                    logger.error(f"Ошибка при создании таблицы {table_name}: {e}")
+                    self.logger.error(f"Ошибка при создании таблицы {table_name}: {e}")
 
-            logger.info(
+            self.logger.info(
                 f"База данных `{db_name}` успешно создана: {full_path}.\n"
                 f"Сформировано {count} таблиц: {', '.join(table_names)}.\n"
                 f"Все таблицы успешно заполнены данными."
