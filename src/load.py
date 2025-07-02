@@ -2,18 +2,18 @@ import os
 import sqlite3
 import logging
 import pandas as pd
-from typing import Literal
+from typing import Literal, Union, Optional
 from sqlalchemy import create_engine
 from clickhouse_connect import get_client
 
-
-logger = logging.getLogger(__name__)
+LoggerType = Union[logging.Logger, logging.LoggerAdapter]
 
 
 class PostgresLoader:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, logger: Optional[LoggerType] = None):
         pg_conf = config["load_config"]["postgres"]
         self.engine = self._create_engine(pg_conf)
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
 
     def _create_engine(self, conf):
         url = (
@@ -29,20 +29,20 @@ class PostgresLoader:
     ):
         for table_name, df in data.items():
             if df.empty:
-                logger.info(
+                self.logger.info(
                     f"Пропущена загрузка пустой таблицы '{table_name}' в PostgreSQL"
                 )
                 continue
             try:
-                logger.info(f"Загрузка таблицы '{table_name}' в PostgreSQL...")
+                self.logger.info(f"Загрузка таблицы '{table_name}' в PostgreSQL...")
                 df.to_sql(table_name, self.engine, index=False, if_exists=if_exists)
-                logger.info(f"Таблица '{table_name}' успешно загружена в PostgreSQL.")
+                self.logger.info(f"Таблица '{table_name}' успешно загружена в PostgreSQL.")
             except Exception as e:
-                logger.error(f"Ошибка при загрузке '{table_name}' в PostgreSQL: {e}")
+                self.logger.error(f"Ошибка при загрузке '{table_name}' в PostgreSQL: {e}")
 
 
 class ClickHouseLoader:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, logger: Optional[LoggerType] = None):
         ch_conf = config["load_config"]["clickhouse"]
         self.client = get_client(
             host=ch_conf["host"],
@@ -51,29 +51,31 @@ class ClickHouseLoader:
             password=ch_conf["password"],
             secure=ch_conf.get("secure", False),
         )
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
 
     def load_dataframe(self, df: pd.DataFrame, table: str):
         if df.empty:
-            logger.info(f"Пропущена загрузка пустой таблицы '{table}' в ClickHouse.")
+            self.logger.info(f"Пропущена загрузка пустой таблицы '{table}' в ClickHouse.")
             return
 
         try:
-            logger.info(f"Загрузка таблицы '{table}' в ClickHouse...")
+            self.logger.info(f"Загрузка таблицы '{table}' в ClickHouse...")
             self.client.insert_df(table, df)
-            logger.info(f"Таблица '{table}' успешно загружена в ClickHouse.")
+            self.logger.info(f"Таблица '{table}' успешно загружена в ClickHouse.")
         except Exception as e:
-            logger.error(f"Ошибка при загрузке '{table}' в ClickHouse: {e}")
+            self.logger.error(f"Ошибка при загрузке '{table}' в ClickHouse: {e}")
 
 
 class SQLiteLoader:
     """
     Класс для загрузки обработанных данных в целевое SQLite хранилище.
     """
-    def __init__(self, load_config: dict):
+    def __init__(self, load_config: dict, logger: Optional[LoggerType] = None):
         self.cfg = load_config
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
         if not os.path.exists(self.cfg["db_path"]):
             os.makedirs(self.cfg["db_path"])
-            logger.info(f"Создана директория для базы данных: {self.cfg['db_path']}")
+            self.logger.info(f"Создана директория для базы данных: {self.cfg['db_path']}")
         self.db_path = os.path.join(self.cfg["db_path"], self.cfg["db_name"])
 
     def load_dataframe(self, table: str, df: pd.DataFrame) -> None:
@@ -85,16 +87,16 @@ class SQLiteLoader:
             df (pd.DataFrame): Данные для загрузки.
         """
         if df.empty:
-            logger.info(f"Пропущена загрузка пустой таблицы '{table}' в SQLite.")
+            self.logger.info(f"Пропущена загрузка пустой таблицы '{table}' в SQLite.")
             return
 
         try:
-            logger.info(f"Начинается загрузка таблицы '{table}' в SQLite...")
+            self.logger.info(f"Начинается загрузка таблицы '{table}' в SQLite...")
             with sqlite3.connect(self.db_path) as conn:
                 df.to_sql(table, conn, if_exists=self.cfg["if_exists"], index=False)
-            logger.info(f"Таблица '{table}' успешно загружена в SQLite.")
+            self.logger.info(f"Таблица '{table}' успешно загружена в SQLite.")
         except Exception as e:
-            logger.error(f"Ошибка при загрузке '{table}' в SQLite: {e}", exc_info=True)
+            self.logger.error(f"Ошибка при загрузке '{table}' в SQLite: {e}", exc_info=True)
 
     def load_all(self, data: dict[str, pd.DataFrame]) -> None:
         """
@@ -103,7 +105,7 @@ class SQLiteLoader:
         Args:
             data (dict[str, pd.DataFrame]): Словарь, где ключ — имя таблицы, значение — соответствующий DataFrame.
         """
-        logger.info("Начинается массовая загрузка всех таблиц в SQLite...")
+        self.logger.info("Начинается массовая загрузка всех таблиц в SQLite...")
         
         for table_name, df in data.items():
             self.load_dataframe(table_name, df)

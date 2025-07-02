@@ -2,9 +2,9 @@ import ast
 import logging
 import re
 import pandas as pd
+from typing import Union, Optional
 
-
-logger = logging.getLogger(__name__)
+LoggerType = Union[logging.Logger, logging.LoggerAdapter]
 
 
 class DataValidator:
@@ -14,10 +14,13 @@ class DataValidator:
     - Проверка пользовательских ограничений
     """
 
-    def __init__(self, validation_config: dict):
+    def __init__(
+        self, validation_config: dict, logger: Optional[LoggerType] = None
+    ):
         self.fk_cfg = validation_config.get("foreign_keys", {})
         self.constr_cfg = validation_config.get("constraints", {}).get("rules", {})
         self.composite_key_config = validation_config.get("composite_keys", {})
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
 
     def _filter_df(self, df, condition: str):
         """
@@ -39,14 +42,14 @@ class DataValidator:
         Returns:
             pd.DataFrame: Отфильтрованный DataFrame.
         """
-        logger.debug(f"Применяется фильтр: {condition}")
+        self.logger.debug(f"Применяется фильтр: {condition}")
 
         # 1) Попытаться напрямую через eval на df.<condition>
         try:
             mask = eval(f"df.{condition}")
             return df[mask]
         except Exception as e:
-            logger.debug(f"eval(df.{condition}) не сработал: {e}")
+            self.logger.debug(f"eval(df.{condition}) не сработал: {e}")
 
         # 2) Если это str.contains или str.match и мы хотим вытащить na=False / pattern
         m = re.fullmatch(
@@ -84,7 +87,7 @@ class DataValidator:
         try:
             return df.query(condition, engine="python")
         except Exception as e:
-            logger.warning(f"Не удалось разобрать условие '{condition}': {e}")
+            self.logger.warning(f"Не удалось разобрать условие '{condition}': {e}")
             return df
 
     def validate_foreign_keys(
@@ -102,12 +105,12 @@ class DataValidator:
         Returns:
             dict[str, pd.DataFrame]: Словарь с очищенными DataFrame-ами после валидации внешних ключей
         """
-        logger.info("Валидация внешних ключей...")
+        self.logger.info("Валидация внешних ключей...")
 
         for table, fks in self.fk_cfg.items():
             for fk_col, parent_table in fks.items():
                 if table not in df_dict or parent_table not in df_dict:
-                    logger.warning(
+                    self.logger.warning(
                         f"Пропущена проверка внешнего ключа: '{table}.{fk_col}' -> '{parent_table}'"
                     )
                     continue
@@ -119,7 +122,7 @@ class DataValidator:
                 child_df = child_df[child_df[fk_col].isin(parent_ids)]
                 after = len(child_df)
 
-                logger.info(
+                self.logger.info(
                     f"{table}: удалено {before - after} строк с невалидными '{fk_col}'"
                 )
                 df_dict[table] = child_df.reset_index(drop=True)
@@ -132,7 +135,7 @@ class DataValidator:
             for cond in rules:
                 before = len(df)
                 df = self._filter_df(df, cond)
-                logger.info(f"{table}: удалено {before - len(df)} строк по '{cond}'")
+                self.logger.info(f"{table}: удалено {before - len(df)} строк по '{cond}'")
             df_dict[table] = df.reset_index(drop=True)
         return df_dict
 
@@ -157,7 +160,7 @@ class DataValidator:
                 continue
             for keys in keys_list:
                 if df.duplicated(subset=keys).any():
-                    logger.warning(f"Дубли {keys} в {table}")
+                    self.logger.warning(f"Дубли {keys} в {table}")
         return df_dict
 
     def run_all_validations(

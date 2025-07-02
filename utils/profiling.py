@@ -1,9 +1,9 @@
 import logging
 import re
 import pandas as pd
+from typing import Union, Optional
 
-
-logger = logging.getLogger(__name__)
+LoggerType = Union[logging.Logger, logging.LoggerAdapter]
 
 
 class DataProfiler:
@@ -17,8 +17,11 @@ class DataProfiler:
     - корреляция
     """
 
-    def __init__(self, profiling_config: dict | None = None) -> None:
+    def __init__(
+        self, profiling_config: dict | None = None, logger: Optional[LoggerType] = None
+    ) -> None:
         self.cfg = profiling_config or {}
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
 
     def _clean_control_chars(self, df: pd.DataFrame) -> pd.DataFrame:
         """Вспомогательная функция для очистки контрольных символов в DataFrame
@@ -48,7 +51,7 @@ class DataProfiler:
             dict: Результаты профилирования.
         """
 
-        logger.info("Начинается профилирование данных.")
+        self.logger.info("Начинается профилирование данных.")
 
         df = self._clean_control_chars(df)
         profile_report = {}
@@ -76,7 +79,7 @@ class DataProfiler:
         else:
             profile_report["correlation"] = {}
 
-        logger.info("Профилирование данных завершено.")
+        self.logger.info("Профилирование данных завершено.")
         return profile_report
 
     def log_profile(self, profile: dict, table_name: str = "") -> None:
@@ -87,6 +90,6 @@ class DataProfiler:
             profile (dict): Результаты профилирования.
             table_name (str): Имя таблицы или датафрейма.
         """
-        logger.info(f"Профилирование таблицы: {table_name}")
+        self.logger.info(f"Профилирование таблицы: {table_name}")
         for key, val in profile.items():
-            logger.info(f"{key}: {val}")
+            self.logger.info(f"{key}: {val}")

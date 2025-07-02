@@ -38,8 +38,9 @@ import logging
 from pathlib import Path
 from jsonschema import Draft7Validator, ValidationError
 from referencing import Registry, Resource
+from typing import Optional, Union
 
-logger = logging.getLogger(__name__)
+LoggerType = Union[logging.Logger, logging.LoggerAdapter]
 
 
 def load_schema(schema_path: Path) -> dict:
@@ -58,8 +59,11 @@ class ConfigLoader:
     Класс для загрузки и кэширования YAML-конфигураций.
     """
 
-    def __init__(self):
+    def __init__(self, logger: Optional[LoggerType] = None):
         self._cache: dict[Path, dict] = {}  # Инициализация пустого кэша
+        self.logger: LoggerType = (
+            logger if logger is not None else logging.getLogger(__name__)
+        )
 
     def load_config(self, path: Path) -> dict:
         """
@@ -71,20 +75,20 @@ class ConfigLoader:
         :raises `FileNotFoundError`: если файл не существует
         """
         if path in self._cache:
-            logger.info(f"Загружена сохраненная конфигурация: {path.stem}")
+            self.logger.info(f"Загружена сохраненная конфигурация: {path.stem}")
             return self._cache[path]
 
         try:
             with open(path, "r", encoding="utf8") as f:
                 data = yaml.safe_load(f)
             self._cache[path] = data
-            logger.info(f"Конфиг успешно загружен: {path}")
+            self.logger.info(f"Конфиг успешно загружен: {path}")
             return data
         except yaml.YAMLError as e1:
-            logger.error(f"Ошибка при загрузке файла конфигурации: {e1}")
+            self.logger.error(f"Ошибка при загрузке файла конфигурации: {e1}")
             raise
         except FileNotFoundError as e2:
-            logger.error(f"Файл конфигурации не найден: {e2}")
+            self.logger.error(f"Файл конфигурации не найден: {e2}")
             raise
 
 
@@ -93,11 +97,14 @@ class ConfigValidator:
     Класс для валидации конфигураций по JSON Schema.
     """
 
-    def __init__(self, schema: dict):
+    def __init__(self, schema: dict, logger: Optional[LoggerType] = None):
         """
         :param dict `schema`: загруженная JSON Schema
         """
         self.schema = schema
+        self.logger: LoggerType = (
+            logger if logger is not None else logging.getLogger(__name__)
+        )
         # Создаем Resource объект из схемы для использования в валидации
         self.resource = Resource.from_contents(schema)
         # Регистрируем схему в реестре с URI "cfg://base" для разрешения ссылок
@@ -136,7 +143,13 @@ class ConfigChecker:
     Класс для запуска валидации одного или всех YAML-конфигов в директории.
     """
 
-    def __init__(self, loader: ConfigLoader, validator: ConfigValidator, cfg_dir: Path):
+    def __init__(
+        self,
+        loader: ConfigLoader,
+        validator: ConfigValidator,
+        cfg_dir: Path,
+        logger: Optional[LoggerType] = None,
+    ):
         """
         :param ConfigLoader `loader`: загрузчик конфигов
         :param ConfigValidator `validator`: валидатор конфигов
@@ -145,6 +158,9 @@ class ConfigChecker:
         self.loader = loader
         self.validator = validator
         self.cfg_dir = cfg_dir
+        self.logger: LoggerType = (
+            logger if logger is not None else logging.getLogger(__name__)
+        )
 
     def validate_file(self, path: Path) -> bool:
         """
@@ -156,10 +172,10 @@ class ConfigChecker:
         try:
             config = self.loader.load_config(path)
             self.validator.validate(config, path.stem)
-            logger.info(f"[OK] {path}")
+            self.logger.info(f"[OK] {path}")
             return True
         except (ValidationError, KeyError, yaml.YAMLError) as e:
-            logger.error(f"[ERROR] {path}: {e}")
+            self.logger.error(f"[ERROR] {path}: {e}")
             return False
 
     def validate_all(self) -> None:
@@ -176,6 +192,6 @@ class ConfigChecker:
                 failures += 1
 
         if failures:
-            logger.debug(f"{failures} файлов не прошли валидацию.")
+            self.logger.debug(f"{failures} файлов не прошли валидацию.")
             return None
-        logger.info("Все конфиги валидны.")
+        self.logger.info("Все конфиги валидны.")

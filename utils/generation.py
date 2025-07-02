@@ -57,10 +57,10 @@ import random
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Union, Optional
 import faker
 
-# from pymongo import MongoClient
+LoggerType = Union[logging.Logger, logging.LoggerAdapter]
 
 
 class DataGenerator:
@@ -101,12 +101,13 @@ class DataGenerator:
     - Использует Faker для генерации реалистичных случайных данных
     """
 
-    def __init__(self, gen_config: dict):
+    def __init__(self, gen_config: dict, logger: Optional[LoggerType] = None):
         self.cfg = gen_config  # Конфигурация для генерации данных
         self.faker = faker.Faker()  # Генератор случайных данных
         self.anomaly_cfg = self.cfg.get(
             "anomaly_cfg", {}
         )  # Конфигурация загрязнения данных
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
 
     def _inject_anomaly(
         self,
@@ -120,7 +121,7 @@ class DataGenerator:
         :param Any `value`: Оригинальное значение, которое вероятностно будет заменено на аномальное значение.
         :param str `dtype`: Тип данных значения. Необходим для выбора аномалий.
         :param bool `nullable`: Флаг, указывающий, может ли значение быть `None`. Defaults to True.
-        :return Any: Загрязненное значение или оригинальное, если не было загрязнения.
+        :return `Any`: Загрязненное значение или оригинальное, если не было загрязнения.
         """
         probability = self.anomaly_cfg.get("probability", 0.1)
         if random.random() > probability:
@@ -135,7 +136,11 @@ class DataGenerator:
 
     @staticmethod
     def _get_product_names(
-        num_rows: int, products: list, models: list, colors: list, logger=None
+        num_rows: int,
+        products: list,
+        models: list,
+        colors: list,
+        logger: Optional[LoggerType] = None,
     ) -> set[str]:
         """
         Генерация уникальных наименований товаров:
@@ -147,8 +152,9 @@ class DataGenerator:
         :param list `colors`: Список цветов.
         :param logger: логгер для сообщений (опционально)
         :raises `ValueError`: если в аргументы передан хотя бы один пустой список
-        :return set: Множество уникальных названий товаров.
+        :return `set`: Множество уникальных названий товаров.
         """
+        logger = logger or logging.getLogger(__name__)
         if logger:
             logger.info("Генерация уникальных названий товаров...")
         product_names = set()  # set для контроля уникальности названий
@@ -239,10 +245,10 @@ class SQLiteGenerator(DataGenerator):
     - Логирование всех этапов генерации
     """
 
-    def __init__(self, gen_config: dict, logger=None):
-        super().__init__(gen_config["sqlite"])
+    def __init__(self, gen_config: dict, logger: Optional[LoggerType] = None):
+        super().__init__(gen_config["sqlite"], logger=logger)
         self.word_lists = self.cfg.get("word_lists", {})
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
 
     def _generate_users(self, num_rows: int) -> list[tuple[Any]]:
         """
@@ -466,7 +472,7 @@ class SQLiteGenerator(DataGenerator):
 
         self.logger.info(f"Таблица {table_name} успешно заполнена!")
 
-    def create_db(self, db_name: Any = "", db_path: Any = "") -> None:
+    def create_db(self, db_name: Any = None, db_path: Any = None) -> None:
         """
         Создаёт базу данных SQLite с таблицами согласно конфигурации,
         генерирует синтетические данные и заполняет ими таблицы.
@@ -474,9 +480,7 @@ class SQLiteGenerator(DataGenerator):
         :param str `db_name`: Имя БД SQLite.
         :param str `db_path`: Путь для сохранения файла БД.
         """
-
-        self.actual_db_name = db_name or self.cfg["db_name"]
-        self.actual_db_path = db_path or self.cfg["db_path"]
+        self.logger.info("Начинаю создание БД...")
 
         if not db_name:
             db_name = self.cfg["db_name"]

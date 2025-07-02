@@ -1,9 +1,9 @@
 import logging
-from typing import Any
+from typing import Any, Union, Optional
 import pandas as pd
 
 
-logger = logging.getLogger(__name__)
+LoggerType = Union[logging.Logger, logging.LoggerAdapter]
 
 
 class DataTransformer:
@@ -12,8 +12,9 @@ class DataTransformer:
     Содержит методы преобразования извлеченных данных.
     """
 
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, logger: Optional[LoggerType] = None) -> None:
         self.config = config
+        self.logger: LoggerType = logger or logging.getLogger(__name__)
 
     def _drop_nulls(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -22,12 +23,12 @@ class DataTransformer:
         :param pd.DataFrame `df`: DataFrame для обработки
         :return pd.DataFrame: обработанный DataFrame
         """
-        logger.info("Удаление null-значений...")
+        self.logger.info("Удаление null-значений...")
         try:
             df = df.dropna()
             return df
         except Exception as e:
-            logger.warning(f"Ошибка удаления null-значений: {e}")
+            self.logger.warning(f"Ошибка удаления null-значений: {e}")
 
     def _drop_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -36,12 +37,12 @@ class DataTransformer:
         :param pd.DataFrame `df`: DataFrame для обработки
         :return pd.DataFrame: обработанный DataFrame
         """
-        logger.info("Удаление дубликатов...")
+        self.logger.info("Удаление дубликатов...")
         try:
             df = df.drop_duplicates()
             return df
         except Exception as e:
-            logger.warning(f"Ошибка удаления дубликатов: {e}")
+            self.logger.warning(f"Ошибка удаления дубликатов: {e}")
 
     def _standartize_timastamp(self, df: pd.DataFrame) -> pd.DataFrame:
          """
@@ -50,12 +51,12 @@ class DataTransformer:
          :param pd.DataFrame `df`: DataFrame для обработки.
          :return pd.DataFrame: обработанный DataFrame.
          """
-         logger.info("Стандартизация timestamp'ов...")
+         self.logger.info("Стандартизация timestamp'ов...")
          try:
              df["timestamp"] = pd.to_datetime(df["timestamp"])
              return df
          except Exception as e:
-             logger.warning(f"Ошибка стандартизации timestamp'ов: {e}")
+             self.logger.warning(f"Ошибка стандартизации timestamp'ов: {e}")
 
     def transform(
         self, data: dict[str, dict[str, list[str] | list[tuple[Any, ...]]]]
@@ -78,7 +79,7 @@ class DataTransformer:
         drop_duplicates = cfg.get("drop_duplicates", False)
 
         for name, payload in data.items():
-            logger.info(f"Трансформация таблицы '{name}'...")
+            self.logger.info(f"Трансформация таблицы '{name}'...")
             cols = payload.get("columns", [])
             rows = payload.get("rows", [])
 
@@ -87,16 +88,16 @@ class DataTransformer:
 
             # Удаляем null-значения
             if dropna:
-                logger.info(f"Удаление null-значений в таблице '{name}'")
+                self.logger.info(f"Удаление null-значений в таблице '{name}'")
                 df = df.dropna()
-                logger.info(
+                self.logger.info(
                     f"Удалено {len(rows) - len(df)} null-значений в таблице {name}"
                 )
             # Удаляем дубликаты
             if drop_duplicates:
-                logger.info(f"Удаляем дубликаты в таблице {name}")
+                self.logger.info(f"Удаляем дубликаты в таблице {name}")
                 df = df.drop_duplicates()
-                logger.info(
+                self.logger.info(
                     f"Удалено {len(rows) - len(df)} дубликатов в таблице {name}"
                 )
 
