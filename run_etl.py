@@ -10,7 +10,7 @@ boot_logger = LoggerInitializer(bootstrap_mode=True).bootstrap_logger
 CFG_DIR = Path("cfg/")
 SCHEMA_PATH = CFG_DIR / "schema/cfg_validation_schema.yaml"
 DB_NAME = "synthetic_database.db"
-DB_PATH = Path("sunthetic_database_directory")
+DB_PATH = Path("synthetic_database_directory")
 
 schema = load_schema(SCHEMA_PATH)
 
@@ -44,4 +44,14 @@ ext_cfg = cfg_loader.load_config(CFG_DIR / "extraction_cfg.yaml")
 extractor = extract.SQLiteExtractor(ext_cfg, ext_logger)
 raw_data = extractor.extract(db_name=DB_NAME, db_path=DB_PATH)
 
-print(raw_data)
+# Transfromation
+trans_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
+    stage_name="transformation"
+)
+
+trans_cfg = cfg_loader.load_config(CFG_DIR / "transformation_cfg.yaml")
+
+transformer = transform.DataTransformer(trans_cfg, trans_logger)
+transformed_data = transformer.transform_data(data=raw_data)
+
+print(transformed_data)

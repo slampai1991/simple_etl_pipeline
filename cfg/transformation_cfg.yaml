@@ -5,11 +5,11 @@ operations:
   drop_duplicates:
     enabled: true
   normalize_columns:
-    enabled: false # резерв
+    enabled: true
   standardize_dates:
-    enabled: false # резерв
+    enabled: true
 operation_order:
   - dropna
   - drop_duplicates
-  # - normalize_columns
-  # - standardize_dates
+  - normalize_columns
+  - standardize_dates

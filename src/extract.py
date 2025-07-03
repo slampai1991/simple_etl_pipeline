@@ -25,16 +25,17 @@ class DataExtractor:
 
 
 class SQLiteExtractor(DataExtractor):
-    def __init__(self, sqlite_cfg: dict, logger: Optional[LoggerType] = None):
-        super().__init__(sqlite_cfg, logger=logger)
-        self.tables = sqlite_cfg.get("tables", [])
+    def __init__(self, extract_cfg: dict, logger: Optional[LoggerType] = None):
+        super().__init__(extract_cfg['sqlite'], logger=logger)
+        self.tables = extract_cfg['sqlite'].get("tables", [])
 
-    def extract(self, db_name: Any, db_path: Any) -> dict[str, pd.DataFrame]:
+    def extract(self, db_name: str, db_path: str | Path) -> dict[str, pd.DataFrame]:
         """
         Извлекает данные из SQLite БД и возвращает как словарь таблиц.
 
-        Returns:
-            dict[str, pd.DataFrame]: Табличные данные в формате {table_name: DataFrame}
+        :param str `db_name`: Имя файла базы данных.
+        :param str | Path `db_path`: Путь к файлу базы данных.
+        :return `dict[str, pd.DataFrame]`: Табличные данные в формате {table_name: DataFrame}
         """
         
         full_path = Path(db_path) / db_name
