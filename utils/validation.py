@@ -4,6 +4,7 @@ import re
 import pandas as pd
 from typing import Union, Optional
 
+
 LoggerType = Union[logging.Logger, logging.LoggerAdapter]
 
 
@@ -14,15 +15,13 @@ class DataValidator:
     - Проверка пользовательских ограничений
     """
 
-    def __init__(
-        self, validation_config: dict, logger: Optional[LoggerType] = None
-    ):
-        self.fk_cfg = validation_config.get("foreign_keys", {})
-        self.constr_cfg = validation_config.get("constraints", {}).get("rules", {})
-        self.composite_key_config = validation_config.get("composite_keys", {})
+    def __init__(self, val_cfg: dict, logger: Optional[LoggerType] = None):
+        self.fk_cfg = val_cfg.get("foreign_keys", {})
+        self.const_cfg = val_cfg.get("constraints", {}).get("rules", {})
+        self.ck_cfg = val_cfg.get("composite_keys", {})
         self.logger: LoggerType = logger or logging.getLogger(__name__)
 
-    def _filter_df(self, df, condition: str):
+    def _filter_df(self, df: pd.DataFrame, condition: str):
         """
         Применяет фильтр к DataFrame на основе заданного строкового условия.
 
@@ -44,18 +43,12 @@ class DataValidator:
         """
         self.logger.debug(f"Применяется фильтр: {condition}")
 
-        # 1) Попытаться напрямую через eval на df.<condition>
-        try:
-            mask = eval(f"df.{condition}")
-            return df[mask]
-        except Exception as e:
-            self.logger.debug(f"eval(df.{condition}) не сработал: {e}")
-
-        # 2) Если это str.contains или str.match и мы хотим вытащить na=False / pattern
+        # Формируем паттерн
         m = re.fullmatch(
             r"(\w+)\.str\.contains\((r?['\"].+['\"])(?:,\s*na\s*=\s*(True|False))?\)",
             condition,
         )
+
         if m:
             col, pattern, na_flag = m.groups()
             na = (na_flag == "True") if na_flag is not None else False
@@ -111,7 +104,8 @@ class DataValidator:
             for fk_col, parent_table in fks.items():
                 if table not in df_dict or parent_table not in df_dict:
                     self.logger.warning(
-                        f"Пропущена проверка внешнего ключа: '{table}.{fk_col}' -> '{parent_table}'"
+                        f"Пропущена проверка внешнего ключа: '{table}.{fk_col}' -> '{parent_table}'\n"  
+                        f"Причина: одна или обе таблицы отсутствуют в df_dict: {df_dict.keys()}"
                     )
                     continue
 
@@ -131,11 +125,13 @@ class DataValidator:
 
     def validate_constraints(self, df_dict):
         for table, df in df_dict.items():
-            rules = self.constr_cfg.get(table, [])
+            rules = self.const_cfg.get(table, [])
             for cond in rules:
                 before = len(df)
                 df = self._filter_df(df, cond)
-                self.logger.info(f"{table}: удалено {before - len(df)} строк по '{cond}'")
+                self.logger.info(
+                    f"{table}: удалено {before - len(df)} строк по '{cond}'"
+                )
             df_dict[table] = df.reset_index(drop=True)
         return df_dict
 
@@ -154,7 +150,7 @@ class DataValidator:
         Returns:
             dict[str, pd.DataFrame]: Исходный словарь с DataFrame-ами после проверки составных ключей
         """
-        for table, keys_list in self.composite_key_config.items():
+        for table, keys_list in self.ck_cfg.items():
             df = df_dict.get(table)
             if df is None:
                 continue
@@ -166,7 +162,41 @@ class DataValidator:
     def run_all_validations(
         self, df_dict: dict[str, pd.DataFrame]
     ) -> dict[str, pd.DataFrame]:
-        df_dict = self.validate_foreign_keys(df_dict)
-        df_dict = self.validate_composite_keys(df_dict)
-        df_dict = self.validate_constraints(df_dict)
-        return df_dict
+        """
+        Запускает комплексную валидацию набора данных - DataFrame - по следующим направлениям:
+
+        1. Валидация внешних ключей:
+           - Проверяет, что значения внешних ключей в дочерних таблицах
+             присутствуют в родительских таблицах.
+           - Строки с невалидными значениями внешних ключей удаляются.
+
+        2. Валидация составных ключей:
+           - Проверяет уникальность комбинаций колонок, определённых как составные ключи.
+           - В случае обнаружения дубликатов генерирует предупреждения в лог.
+           - Не удаляет дубликаты, а только информирует.
+
+        3. Валидация пользовательских ограничений:
+           - Применяет пользовательские правила фильтрации строк, заданные в конфигурации.
+           - Строки, не удовлетворяющие условиям, удаляются.
+
+        :param dict[str, pd.DataFrame] `df_dict`: Словарь с наборами данных для валидации,
+                где ключ — имя таблицы, а значение — соответствующий pandas DataFrame.
+        :return `dict[str, pd.DataFrame]`: Новый словарь c DataFrame после применения всех проверок и фильтраций.
+
+        Примечания:
+            - Для корректной работы необходима корректная конфигурация внешних ключей,
+              составных ключей и ограничений, переданная при инициализации класса.
+            - Валидация внешних ключей базируется на совпадении с колонкой 'id'
+              родительской таблицы (может быть расширена для других ключей).
+            - Валидация ограничений и фильтрация выполняется последовательно,
+              что может приводить к каскадному удалению строк.
+        """
+        self.logger.info("Запуск комплексной валидации...")
+        try:
+            df_dict = self.validate_foreign_keys(df_dict)
+            df_dict = self.validate_composite_keys(df_dict)
+            df_dict = self.validate_constraints(df_dict)
+            return df_dict
+        except Exception as e:
+            self.logger.error(f"Ошибка валидации: {e}")
+            raise

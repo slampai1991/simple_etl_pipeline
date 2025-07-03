@@ -41,3 +41,7 @@ logs
 *.csv
 *.db-journal
 db
+
+# Ignore any files or directories containing 'synthetic'
+*synthetic*
+*/synthetic*/

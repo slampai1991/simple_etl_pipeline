@@ -54,4 +54,13 @@ trans_cfg = cfg_loader.load_config(CFG_DIR / "transformation_cfg.yaml")
 transformer = transform.DataTransformer(trans_cfg, trans_logger)
 transformed_data = transformer.transform_data(data=raw_data)
 
-print(transformed_data)
+# Validation (optional)
+val_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
+    stage_name="validation"
+)
+
+val_cfg = cfg_loader.load_config(CFG_DIR / "validation_cfg.yaml")
+
+validator = validation.DataValidator(val_cfg, val_logger)
+validated_data = validator.run_all_validations(transformed_data)
+
