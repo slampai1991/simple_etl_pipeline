@@ -73,3 +73,5 @@ constraints:
       purchase_date.astype('str').str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
     - |
       status.isin(['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'])
+    # - /
+    #   delivery_address.astype('str').str.match(r'.*[A-Za-z].*', na=False)

@@ -1,15 +1,31 @@
 enabled: true
-operations:
-  dropna:
-    enabled: true
-  drop_duplicates:
-    enabled: true
-  normalize_columns:
-    enabled: true
-  standardize_dates:
-    enabled: true
-operation_order:
-  - dropna
-  - drop_duplicates
-  - normalize_columns
-  - standardize_dates
+
+pre_validation:
+  operations:
+    dropna:
+      enabled: true
+    drop_duplicates:
+      enabled: false
+    normalize_columns:
+      enabled: true
+    standardize_dates:
+      enabled: true
+
+  pre_order:
+    - normalize_columns
+    - dropna
+    - standardize_dates
+
+post_validation:
+  operations:
+    drop_duplicates:
+      enabled: true
+    strip_whitespace:
+      enabled: true
+    format_dates_iso:
+      enabled: false
+
+  post_order:
+    - drop_duplicates
+    - strip_whitespace
+    - format_dates_iso
