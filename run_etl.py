@@ -25,14 +25,14 @@ log_cfg = cfg_loader.load_config(CFG_DIR / "log_cfg.yaml")
 base_and_log_cfg = {"base_cfg": base_cfg, "log_cfg": log_cfg}
 
 # Generation (optional)
-gen_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
-    stage_name="generation"
-)
+# gen_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
+#     stage_name="generation"
+# )
 
-gen_cfg = cfg_loader.load_config(CFG_DIR / "generation_cfg.yaml")
-data_gen = generation.SQLiteGenerator(gen_config=gen_cfg, logger=gen_logger)
+# gen_cfg = cfg_loader.load_config(CFG_DIR / "generation_cfg.yaml")
+# data_gen = generation.SQLiteGenerator(gen_config=gen_cfg, logger=gen_logger)
 
-data_gen.create_db(db_path=DB_PATH, db_name=DB_NAME)
+# data_gen.create_db(db_path=DB_PATH, db_name=DB_NAME)
 
 # Extraction
 ext_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
@@ -64,3 +64,4 @@ val_cfg = cfg_loader.load_config(CFG_DIR / "validation_cfg.yaml")
 validator = validation.DataValidator(val_cfg, val_logger)
 validated_data = validator.run_all_validations(transformed_data)
 
+print(transformed_data)

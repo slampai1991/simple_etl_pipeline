@@ -16,60 +16,60 @@ composite_keys:
 constraints:
   users:
     - |
-      age > 0 and age < 100
+      (age > 0) and (age < 100)
     - |
-      phone.astype(str).str.match(r'^(?=(?:.*\d){7,})\+?\d[\d.\-\(\)x ]+\d$', na=False)
+      phone.astype('str').str.match(r'^(?=(?:.*\d){7,})\+?\d[\d.\-\(\)x ]+\d$', na=False)
     - |
-      email.astype(str).str.contains(r'^[A-Za-z0-9_.+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9-.]+$', na=False)
+      email.astype('str').str.contains(r'^[A-Za-z0-9_.+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9-.]+$', na=False)
     - |
-      name.astype(str).str.contains(r'[A-Za-z ]+', na=False)
+      name.astype('str').str.contains(r'[A-Za-z ]+', na=False)
     - |
-      reg_date.astype(str).str.match(r'^\d{4}-\d{2}-\d{2}$', na=False)
+      reg_date.astype('str').str.match(r'^\d{4}-\d{2}-\d{2}$', na=False)
     - |
-      country.astype(str).str.match(r'^[A-Za-z ]+$', na=False)
+      country.astype('str').str.match(r'^[A-Za-z ]+$', na=False)
 
   products:
     - |
-      price.astype(str).str.match(r'^\d+(\.\d+)?$', na=False)
+      price.astype('str').str.match(r'^\d+(\.\d+)?$', na=False)
     - |
       (price > 0) & (price < 10000)
     - |
-      name.astype(str).str.match(r'.*[A-Za-z].*', na=False)
+      name.astype('str').str.match(r'.*[A-Za-z].*', na=False)
     - |
-      category.astype(str).str.match(r'.*[A-Za-z].*', na=False)
+      category.astype('str').str.match(r'.*[A-Za-z].*', na=False)
 
   logs:
     - |
       severity.isin(['INFO', 'WARNING', 'ERROR', 'CRITICAL'])
     - |
-      error_message.astype(str).str.match(r'.*[A-Za-z].*', na=False)
+      error_message.astype('str').str.match(r'.*[A-Za-z].*', na=False)
     - |
-      timestamp.astype(str).str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
+      timestamp.astype('str').str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
 
   transactions:
     - |
-      user_id.notnull() and user_id.astype(str).str.match(r'^[1-9]\d*$', na=False)
+      user_id.notnull() and user_id.astype('str').str.match(r'^[1-9]\d*$', na=False)
     - |
-      amount.astype(str).str.match(r'^\d+(\.\d+)?$', na=False)
+      amount.astype('str').str.match(r'^\d+(\.\d+)?$', na=False)
     - |
       (amount > 0) & (amount < 100000)
     - |
-      date.astype(str).str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
+      date.astype('str').str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
     - |
-      description.astype(str).str.match(r'.*[A-Za-z].*', na=False)
+      description.astype('str').str.match(r'.*[A-Za-z].*', na=False)
     - |
       status.isin(['PENDING', 'COMPLETED', 'FAILED', 'CANCELLED'])
 
   orders:
     - |
-      amount.astype(str).str.match(r'^\d+(\.\d+)?$', na=False)
+      amount.astype('str').str.match(r'^\d+(\.\d+)?$', na=False)
     - |
       (amount > 0) & (amount < 100000)
     - |
-      user_id.notnull() and user_id.astype(str).str.match(r'^[1-9]\d*$', na=False)
+      user_id.notnull() and user_id.astype('str').str.match(r'^[1-9]\d*$', na=False)
     - |
-      product_id.notnull() and product_id.astype(str).str.match(r'^[1-9]\d*$', na=False)
+      product_id.notnull() and product_id.astype('str').str.match(r'^[1-9]\d*$', na=False)
     - |
-      purchase_date.astype(str).str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
+      purchase_date.astype('str').str.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', na=False)
     - |
       status.isin(['PENDING', 'SHIPPED', 'DELIVERED', 'RETURNED', 'COMPLETED', 'CANCELLED'])
