@@ -172,7 +172,7 @@ class ConfigChecker:
         try:
             config = self.loader.load_config(path)
             self.validator.validate(config, path.stem)
-            self.logger.info(f"[OK] {path}")
+            self.logger.info(f"[OK] {path} VALIDATED!")
             return True
         except (ValidationError, KeyError, yaml.YAMLError) as e:
             self.logger.error(f"[ERROR] {path}: {e}")

@@ -409,25 +409,55 @@ transformation_cfg:
   additionalProperties: false
   required:
     - enabled
-    - operations
-    - operation_order
+    - pre_validation
+    - post_validation
   properties:
     enabled:
       $ref: "#/definitions/EnabledFlag"
-    operations:
+
+    pre_validation:
       type: object
       additionalProperties: false
-      patternProperties:
-        "^[a-zA-Z_][a-zA-Z0-9_]*$":
+      required:
+        - operations
+        - pre_order
+      properties:
+        operations:
           type: object
           additionalProperties: false
-          required:
-            - enabled
-          properties:
-            enabled:
-              $ref: "#/definitions/EnabledFlag"
-    operation_order:
-      $ref: "#/definitions/ListOfStr"
+          patternProperties:
+            "^[a-zA-Z_][a-zA-Z0-9_]*$":
+              type: object
+              additionalProperties: false
+              required:
+                - enabled
+              properties:
+                enabled:
+                  $ref: "#/definitions/EnabledFlag"
+        pre_order:
+          $ref: "#/definitions/ListOfStr"
+
+    post_validation:
+      type: object
+      additionalProperties: false
+      required:
+        - operations
+        - post_order
+      properties:
+        operations:
+          type: object
+          additionalProperties: false
+          patternProperties:
+            "^[a-zA-Z_][a-zA-Z0-9_]*$":
+              type: object
+              additionalProperties: false
+              required:
+                - enabled
+              properties:
+                enabled:
+                  $ref: "#/definitions/EnabledFlag"
+        post_order:
+          $ref: "#/definitions/ListOfStr"
 
 validation_cfg:
   type: object

@@ -159,6 +159,7 @@ class DataValidator:
             df_dict = self.validate_foreign_keys(df_dict)
             df_dict = self.validate_composite_keys(df_dict)
             df_dict = self.validate_constraints(df_dict)
+            self.logger.info("Полная валидация завершена.")
             return df_dict
         except Exception as e:
             self.logger.error(f"Ошибка валидации: {e}")

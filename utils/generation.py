@@ -390,7 +390,7 @@ class SQLiteGenerator(DataGenerator):
         self, num_rows: int, user_ids: list[str]
     ) -> list[tuple[Any]]:
         """
-        Генерация `грязных` данных для таблицы transactions.
+        Генерация `грязных` данных для таблицы user_actions.
 
         :param int `num_rows`: Количество генерируемых записей.
         :param list[str] user_ids: Список пользовательских id.
@@ -421,7 +421,7 @@ class SQLiteGenerator(DataGenerator):
         self, num_rows: int, user_ids: list[str], product_ids: list[str]
     ) -> list[tuple[Any]]:
         """
-        Генерация `грязных` данных для таблицы transactions.
+        Генерация `грязных` данных для таблицы orders.
 
         :param int `num_rows`: Количество генерируемых записей.
         :param list[str] `user_ids`: Список пользовательских id.
@@ -447,7 +447,8 @@ class SQLiteGenerator(DataGenerator):
                 "TEXT",
             )
             amount = self._inject_anomaly(random.randint(1, 2500), "REAL")
-            data.append((None, uid, pid, date, status, amount))
+            delivery_address = self._inject_anomaly(self.faker.address(), "TEXT")
+            data.append((None, uid, pid, date, status, amount, delivery_address))
 
         self.logger.info("Генерация данных для таблицы `orders` завершена!")
         return data

@@ -25,43 +25,42 @@ log_cfg = cfg_loader.load_config(CFG_DIR / "log_cfg.yaml")
 base_and_log_cfg = {"base_cfg": base_cfg, "log_cfg": log_cfg}
 
 # Generation (optional)
-# gen_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
-#     stage_name="generation"
+gen_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
+    stage_name="generation"
+)
+
+gen_cfg = cfg_loader.load_config(CFG_DIR / "generation_cfg.yaml")
+data_gen = generation.SQLiteGenerator(gen_config=gen_cfg, logger=gen_logger)
+
+data_gen.create_db(db_path=DB_PATH, db_name=DB_NAME)
+
+# # Extraction
+# ext_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
+#     stage_name="extraction"
 # )
 
-# gen_cfg = cfg_loader.load_config(CFG_DIR / "generation_cfg.yaml")
-# data_gen = generation.SQLiteGenerator(gen_config=gen_cfg, logger=gen_logger)
+# ext_cfg = cfg_loader.load_config(CFG_DIR / "extraction_cfg.yaml")
 
-# data_gen.create_db(db_path=DB_PATH, db_name=DB_NAME)
+# extractor = extract.SQLiteExtractor(ext_cfg, ext_logger)
+# raw_data = extractor.extract(db_name=DB_NAME, db_path=DB_PATH)
 
-# Extraction
-ext_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
-    stage_name="extraction"
-)
+# # Transfromation
+# trans_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
+#     stage_name="transformation"
+# )
 
-ext_cfg = cfg_loader.load_config(CFG_DIR / "extraction_cfg.yaml")
+# trans_cfg = cfg_loader.load_config(CFG_DIR / "transformation_cfg.yaml")
 
-extractor = extract.SQLiteExtractor(ext_cfg, ext_logger)
-raw_data = extractor.extract(db_name=DB_NAME, db_path=DB_PATH)
+# transformer = transform.DataTransformer(trans_cfg, trans_logger)
+# transformed_data = transformer.transform_data(data=raw_data)
 
-# Transfromation
-trans_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
-    stage_name="transformation"
-)
+# # Validation (optional)
+# val_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
+#     stage_name="validation"
+# )
 
-trans_cfg = cfg_loader.load_config(CFG_DIR / "transformation_cfg.yaml")
+# val_cfg = cfg_loader.load_config(CFG_DIR / "validation_cfg.yaml")
 
-transformer = transform.DataTransformer(trans_cfg, trans_logger)
-transformed_data = transformer.transform_data(data=raw_data)
+# validator = validation.DataValidator(val_cfg, val_logger)
+# validated_data = validator.run_all_validations(transformed_data)
 
-# Validation (optional)
-val_logger = LoggerInitializer(cfg=base_and_log_cfg).init_logger(
-    stage_name="validation"
-)
-
-val_cfg = cfg_loader.load_config(CFG_DIR / "validation_cfg.yaml")
-
-validator = validation.DataValidator(val_cfg, val_logger)
-validated_data = validator.run_all_validations(transformed_data)
-
-print(transformed_data)
